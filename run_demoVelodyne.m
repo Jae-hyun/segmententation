@@ -187,145 +187,101 @@ plot_test_HM3(cloud, remainderqueue); % display the small region after segmentat
 %% 
 % 180; -180;
 % -1.9367; -1.57397; -1.30476; -0.871566; -0.57881; -0.180617; 0.088762; 0.451829; 0.80315; 1.20124; 1.49388; 1.83324; 2.20757; 2.54663; 2.87384; 3.23588; 3.53933; 3.93585; 4.21552; 4.5881; 4.91379; 5.25078; 5.6106; 5.9584; 6.32889; 6.67575; 6.99904; 7.28731; 7.67877; 8.05803; 8.31047; 8.71141; 9.02602; 9.57351; 10.0625; 10.4707; 10.9569; 11.599; 12.115; 12.5621; 13.041; 13.4848; 14.0483; 14.5981; 15.1887; 15.6567; 16.1766; 16.554; 17.1868; 17.7304; 18.3234; 18.7971; 19.3202; 19.7364; 20.2226; 20.7877; 21.3181; 21.9355; 22.4376; 22.8566; 23.3224; 23.971; 24.5066; 24.9992
-%%
-close all;clear all;
+%% 
 base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
-% for i =0:1:nimages/3
-yaw_resolution = (360)/870;
-yaw_angle = 0:yaw_resolution:360;
-vert_angle = [-1.9367; -1.57397; -1.30476; -0.871566; -0.57881; -0.180617; 0.088762; 0.451829; 0.80315; 1.20124; 1.49388; 1.83324; 2.20757; 2.54663; 2.87384; 3.23588; 3.53933; 3.93585; 4.21552; 4.5881; 4.91379; 5.25078; 5.6106; 5.9584; 6.32889; 6.67575; 6.99904; 7.28731; 7.67877; 8.05803; 8.31047; 8.71141; 9.02602; 9.57351; 10.0625; 10.4707; 10.9569; 11.599; 12.115; 12.5621; 13.041; 13.4848; 14.0483; 14.5981; 15.1887; 15.6567; 16.1766; 16.554; 17.1868; 17.7304; 18.3234; 18.7971; 19.3202; 19.7364; 20.2226; 20.7877; 21.3181; 21.9355; 22.4376; 22.8566; 23.3224; 23.971; 24.5066; 24.9992];
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 img_size = size(img);
-nnodes = img_size(1) * img_size(2);
-nscans = img_size(1);
-nranges = img_size(2);
-nodes = zeros(nnodes, 7);
-edges = zeros(nnodes, 5);
+g.nscans = img_size(1);
+g.nranges = img_size(2);
+img_matrix = cast(img, 'double')/500;
+g.NUM_EDGES = 9;
+g.NO_EDGE = -1;
+
 % img1 = imread(sprintf('%s/scan%05d_SLIC.png',base_dir,frame));
 % img = img;
-img_matrix = cast(img, 'double')/500;
-% R = rotation_matrix(1,1);
-% node(:,1) = 
-NUM_EDGES = 5;
-NO_EDGE = -1;
-% p1 = R * img_matrix(1,1);
-p1 = zeros(3,1);
-p1 = range2xyz(img_matrix(1,1), 10, 0);
-for s = 0:1:nscans-1
-   for r=0:1:nranges-1
-      idx = s* nranges + r;
-%       nodes(idx+1,1) = img_matrix(s+1, r+1); 
-      nodes(idx+1, 1:3) = range2xyz(img_matrix(s+1,r+1), yaw_angle(r+1), vert_angle(s+1));
-   end
-end
-        tic
-for s = 0:1:nscans-1
-   for r=0:1:nranges-1
-      idx = s* nranges + r;
-%       nodes(idx+1,1) = img_matrix(s+1, r+1); 
+disp('======= Down Sampling     =======');
+g.deci_s = 1;
+g.deci_r = 1;
+tic
+[deci_img, g] = down_sample_img(img_matrix, g);
+toc
 
-      if (s == 0 || s == nscans-1 || r == 0 || r == nranges-1 || img_matrix(s+1, r+1) == 0)
-          for i=0:1:NUM_EDGES-1
-              edges(idx+1, i+1) = NO_EDGE;
-          end
-      else
-         edges(idx+1, 1) = (s + 0) * nranges + (r + 0)+1;
-         edges(idx+1, 2) = (s + 0) * nranges + (r - 1)+1;
-         edges(idx+1, 3) = (s - 1) * nranges + (r - 1)+1;
-         edges(idx+1, 4) = (s - 1) * nranges + (r + 0)+1;
-         edges(idx+1, 5) = (s - 1) * nranges + (r + 1)+1;
-%        Remove Edges if range == 0  
-         if img_matrix(s+1+0, r+1-1) == 0
-             edges(idx+1, 2) = NO_EDGE;
-         end
-         if img_matrix(s+1-1, r+1-1) == 0
-             edges(idx+1, 3) = NO_EDGE;
-         end
-         if img_matrix(s+1-1, r+1+0) == 0
-             edges(idx+1, 4) = NO_EDGE;
-         end
-         if img_matrix(s+1-1, r+1+1) == 0
-             edges(idx+1, 5) = NO_EDGE;
-         end
-%          Comput normals         
-         nodes(idx+1, 4:6) = compute_normal(s,r, nranges, nodes);
+g.nnodes = g.nscans * g.nranges;
+nodes = zeros(g.nnodes, 8);
+edges = zeros(g.nnodes, 5);
 
-      end
-   end
+figure;
+subplot(2,1,1);
+image(deci_img);
+
+disp('======= RangeImage to XYZ =======');
+tic
+% [nodes] = read_image_to_nodes(img_matrix, base_dir, frame, g);
+[nodes] = read_image_to_nodes(deci_img, g);
+toc
+% nodes = flipud(nodes);
+
+
+%%
+disp('======= Build Graph       =======');
+tic
+[nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
+%{
+for s = 0:1:nscans-1
+    for r=0:1:nranges-1
+        idx = s* nranges + r;
+        %       nodes(idx+1,1) = img_matrix(s+1, r+1);
+        
+        if (s == 0 || s == nscans-1 || r == 0 || r == nranges-1 || img_matrix(s+1, r+1) == 0)
+            for i=0:1:g.NUM_EDGES-1
+                edges(idx+1, i+1) = g.NO_EDGE;
+            end
+        else
+            edges(idx+1, 1) = (s + 0) * nranges + (r + 0)+1;
+            edges(idx+1, 2) = (s + 0) * nranges + (r - 1)+1;
+            edges(idx+1, 3) = (s - 1) * nranges + (r - 1)+1;
+            edges(idx+1, 4) = (s - 1) * nranges + (r + 0)+1;
+            edges(idx+1, 5) = (s - 1) * nranges + (r + 1)+1;
+            % Remove Edges if range == 0
+            if img_matrix(s+1+0, r+1-1) == 0
+                edges(idx+1, 2) = g.NO_EDGE;
+            end
+            if img_matrix(s+1-1, r+1-1) == 0
+                edges(idx+1, 3) = g.NO_EDGE;
+            end
+            if img_matrix(s+1-1, r+1+0) == 0
+                edges(idx+1, 4) = g.NO_EDGE;
+            end
+            if img_matrix(s+1-1, r+1+1) == 0
+                edges(idx+1, 5) = g.NO_EDGE;
+            end
+            % Comput normals
+            nodes(idx+1, 4:6) = compute_normal(s,r, nranges, nodes);
+           
+        end
+    end
 end
-      toc
-figure(1);
-plot3(nodes(:,1), nodes(:,2),nodes(:,3)*-1, 'r*');
-axis equal;
-% colormap hsv
-% imshow(img);
-figure(2);
+%}
+toc
+% figure;
+subplot(2,1,2);
 image(img_matrix);
-drawnow;
+% drawnow;
 frame = frame + 1;
-
-% keyboard;
-% a = input('ют╥б');
-% end
-% imshow(img1);
 
 
 %% test
-figure(3);
+% figure(3);
 nstart = 1;
-nend = 50000;
+nend = g.nnodes;
+plot_nodes(nodes, nstart, nend)
 
-x1 = nodes(nstart:nend,1);
-% x = x(x~=0);
-y1 = nodes(nstart:nend,2);
-% y = y(y~=0);
-z1 = nodes(nstart:nend,3)*-1;
-nx1 = nodes(nstart:nend,4);
-ny1 = nodes(nstart:nend,5);
-nz1 = nodes(nstart:nend,6);
-% z = z(z~=0);
-idnzero = ~(x1 == 0 & y1 == 0);
-x = x1(idnzero);
-y = y1(idnzero);
-z = z1(idnzero);
-% nx2 = nx1(idnzero);
-% ny2 = ny1(idnzero);
-% nz2 = nz1(idnzero);
-nx = smooth(nx1(idnzero));
-ny = smooth(ny1(idnzero));
-nz = smooth(nz1(idnzero));
-quiver3(x,y,z,nx,ny,nz,0.2);
+%%
+% clc
+% a = [3, 1, 3];
+% if a(1,1:3) == 3
+%     display('test');
+% end
 
-
-hold on;
-axis equal;
-plot3(x, y, z, 'r.');
-% figure;
-% 
-% hold on;
-% plot(nx2, 'b');
-% plot(nx, 'r');
-
-% % Start Mesh Grid
-% dx=0.1;
-% dy=0.1;
-% 
-% x_edge=[floor(min(x)):dx:ceil(max(x))];
-% y_edge=[floor(min(y)):dy:ceil(max(y))];
-% [X,Y]=meshgrid(x_edge,y_edge);
-% 
-% % Z=griddata(x,y,z,X,Y);
-% % F=TriScatteredInterp(x,y,z);
-% % F = DelaunayTri(x, y);
-% % The following line of code is if you use JE's gridfit:
-% % Z=gridfit(x,y,z,x_edge,y_edge);
-% % Z = F(X,Y);
-% 
-% 
-% %NOW surf and mesh will work...
-% 
-% % surf(X,Y,Z)
-% % meshc(X,Y,Z)
-% %End of code to be copied-----------------------
