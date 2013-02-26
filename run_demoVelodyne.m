@@ -197,20 +197,20 @@ g.nscans = img_size(1);
 g.nranges = img_size(2);
 img_matrix = cast(img, 'double')/500;
 g.NUM_EDGES = 4;
-g.NO_EDGE = -1;
+g.NO_EDGE = -100;
 
 % img1 = imread(sprintf('%s/scan%05d_SLIC.png',base_dir,frame));
 % img = img;
 disp('======= Down Sampling     =======');
 g.deci_s = 1;
-g.deci_r = 5;
+g.deci_r = 1;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
 
 g.nnodes = g.nscans * g.nranges;
 nodes = zeros(g.nnodes, 8);
-% edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 3);
+edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 3);
 
 figure;
 subplot(2,1,1);
@@ -219,7 +219,7 @@ image(deci_img);
 disp('======= RangeImage to XYZ =======');
 tic
 % [nodes] = read_image_to_nodes(img_matrix, base_dir, frame, g);
-[nodes] = read_image_to_nodes(deci_img, g);
+[nodes(:,1:4)] = read_image_to_nodes(deci_img, g);
 toc
 % nodes = flipud(nodes);
 
@@ -227,9 +227,16 @@ toc
 %%
 disp('======= Build Graph       =======');
 tic
-[nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
+[nodes(:,5:7), edges] = build_graph(nodes(:,1:8), g);
+%%
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
-% edges(:,:) = edges(idx,:);
+
+edges(~any(edges,2),:) = [];
+[nedges, temp] = size(edges);
+for i=1:1:nedges
+   edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7))); 
+end
+%%
 %{
 for s = 0:1:nscans-1
     for r=0:1:nranges-1
@@ -274,26 +281,89 @@ image(img_matrix);
 frame = frame + 1;
 
 %%
-sort_edges = sortrows(edges, 3);
-[nedges, temp] = size(sort_edges); 
+disp('======= Segment Graph     =======');
+tic
+sort_edges = sortrows(edges, 4);
+
 threshold = zeros(g.nnodes, 1);
 i = 1:1:g.nnodes;
-g.c = 10;
-threshold(i) = g.c/1;
+g.c = 2.5;
+g.n = 0.3;
+threshold(i,1) = g.c/1;
+threshold(i,2) = g.n/1;
 u = universe;
 u.initialize(g.nnodes);
 for i=1:1:nedges
     a = u.find(sort_edges(i,1));
     b = u.find(sort_edges(i,2));
-    if (a ~= b)
-        if(sort_edges(i,3) < threshold(a) && sort_edges(i,3) < threshold(b))
-            u.join(a,b);
-            a = u.find(a);
-            threshold(a) = sort_edges(i,3) + ( g.c/u.size(a));
+    if(sort_edges(i,3) ~= g.NO_EDGE)
+        if (a ~= b)
+%             if(sort_edges(i,3) < threshold(a,1) && sort_edges(i,3) < threshold(b,1))
+%                 u.join(a,b);
+%                 a = u.find(a);
+%                 threshold(a,1) = sort_edges(i,3) + ( g.c/u.size(a));
+%             end
+            if(sort_edges(i,4) < threshold(a,2) && sort_edges(i,4) < threshold(b,2))
+                u.join(a,b);
+                a = u.find(a);
+                threshold(a,2) = sort_edges(i,4) + ( g.n/u.size(a));
+            end
         end
     end
 end
+toc
+%% enforce min zie
+% %{
+disp('======= Enforce miz_size  =======');
+tic
+min_size = 100;
+for i=1:1:nedges
+   a = u.find(sort_edges(i,1));
+   b = u.find(sort_edges(i,2));
+   if(sort_edges(i,3) ~= g.NO_EDGE)
+       if ((a ~= b) && (u.size(a) < min_size) || (u.size(b) < min_size))
+           u.join(a,b);
+       end
+   end
+end
 num_ccs = u.num_sets();
+toc
+% %}
+%%
+for i=1:1:g.nnodes
+   if nodes(i,4) ~= 0
+       nodes(i,8) = u.find(i);
+   else
+       nodes(i, 8) = 0;
+   end
+end
+figure;
+hold on;
+axis equal;
+c1 = colormap(jet(g.nnodes));
+r1 = randperm(g.nnodes);
+% colorbar;
+for i = 1:1:g.nnodes
+    plot3(nodes(i,1),nodes(i,2),nodes(i,3)*-1, '.', 'color', c1(r1(nodes(i,8)),:))
+end
+delete c;
+delete r;
+%%
+disp('======= plot image  =======');
+tic
+temp_img = zeros(g.nscans, g.nranges);
+cm = colormap(jet(100));
+r = randperm(100);
+for s = 0:1:g.nscans-1
+   for ri=0:1:g.nranges-1
+       idx = s* g.nranges + ri;
+       temp_img(s+1,ri+1) = mod(nodes(idx+1,8), 100);
+   end
+end
+figure;
+image(temp_img);
+colormap(cm);
+toc       
 %% test
 % figure(3);
 nstart = 1;

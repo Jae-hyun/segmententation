@@ -1,4 +1,4 @@
-function n = compute_normal(sidx, ridx,nranges, scans, edges)
+function n = compute_normal(sidx, ridx,nranges, scans)
     points = zeros(9,3);
     i = 1;
     for k = -1:1:1

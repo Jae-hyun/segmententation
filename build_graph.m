@@ -2,8 +2,9 @@ function [normals, edges] = build_graph(nodes, g)
     nscans = g.nscans;
     nranges = g.nranges;
     normals = zeros(nscans*nranges,3);
-%     edges = zeros((nscans-1)*(nranges-1)*g.NUM_EDGES, 3);
+    edges = zeros((nscans-1)*(nranges-1)*g.NUM_EDGES, 4);
     num = 1;
+
     for s = 0:1:nscans-1
         for r=0:1:nranges-1
             idx = s* nranges + r;
@@ -61,9 +62,10 @@ function [normals, edges] = build_graph(nodes, g)
             else
             % Comput normals
 %                 tic
-                normals(idx+1, 1:3) = compute_normal(s,r, nranges, nodes, edges);
+                normals(idx+1, 1:3) = compute_normal(s,r, nranges, nodes);
 %                 toc
             end
         end
     end
+
 end
