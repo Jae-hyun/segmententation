@@ -12,44 +12,24 @@ function [normals, edges] = build_graph(nodes, g)
                 idy = s * nranges + (r+1);
                 edges(num,1) = idx + 1;
                 edges(num,2) = idy + 1;
-                if nodes(idx+1,4) == 0 || nodes(idy+1,4) == 0
-                    edges(num,3) = g.NO_EDGE;
-                else
-                    edges(num,3) = pdist([nodes(edges(num,1),1:3); nodes(edges(num,2),1:3)]);
-                end
                 num = num + 1;
             end
             if s < nscans -1
                 idy = (s+1) * nranges + (r);
                 edges(num,1) = idx + 1;
                 edges(num,2) = idy + 1;
-                if nodes(idx+1,4) == 0 || nodes(idy+1,4) == 0
-                    edges(num,3) = g.NO_EDGE;
-                else
-                    edges(num,3) = pdist([nodes(edges(num,1),1:3); nodes(edges(num,2),1:3)]);
-                end
                 num = num + 1;
             end
             if s < nscans -1 && r < nranges -1
                 idy = (s+1) * nranges + (r+1);
                 edges(num,1) = idx + 1;
                 edges(num,2) = idy + 1;
-                if nodes(idx+1,4) == 0 || nodes(idy+1,4) == 0
-                    edges(num,3) = g.NO_EDGE;
-                else
-                    edges(num,3) = pdist([nodes(edges(num,1),1:3); nodes(edges(num,2),1:3)]);
-                end
                 num = num + 1;
             end
-            if s > 0 && r < nranges -1 && nodes(((s-1) * nranges + (r+1)) + 1,4) ~= 0
+            if s > 0 && r < nranges -1
                 idy = (s-1) * nranges + (r+1);
                 edges(num,1) = idx + 1;
                 edges(num,2) = idy + 1;
-                if nodes(idx+1,4) == 0 || nodes(idy+1,4) == 0
-                    edges(num,3) = g.NO_EDGE;
-                else
-                    edges(num,3) = pdist([nodes(edges(num,1),1:3); nodes(edges(num,2),1:3)]);
-                end
                 num = num + 1;
             end
         end

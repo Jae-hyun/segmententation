@@ -193,8 +193,7 @@ nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 img_size = size(img);
-g.nscans = img_size(1);
-g.nranges = img_size(2);
+[g.nscans, g.nranges] = size(img);
 img_matrix = cast(img, 'double')/500;
 g.NUM_EDGES = 4;
 g.NO_EDGE = -100;
@@ -212,9 +211,7 @@ g.nnodes = g.nscans * g.nranges;
 nodes = zeros(g.nnodes, 8);
 edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 3);
 
-figure;
-subplot(2,1,1);
-image(deci_img);
+
 
 disp('======= RangeImage to XYZ =======');
 tic
@@ -227,15 +224,29 @@ toc
 %%
 disp('======= Build Graph       =======');
 tic
-[nodes(:,5:7), edges] = build_graph(nodes(:,1:8), g);
+[nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
+% nodes(:,5) = smooth(nodes(:,5));
+% nodes(:,6) = smooth(nodes(:,6));
+% nodes(:,7) = smooth(nodes(:,7));
+toc
+edges(~any(edges,2),:) = [];
+g.nedges = size(edges,1);
 %%
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
+disp('======= Compute Edge Weights =======');
+tic
+for i=1:1:g.nedges
+    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
+        edges(i,3) = g.NO_EDGE;
+        edges(i,4) = g.NO_EDGE;
+    else
+        edges(i,3) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
+        edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));        
+    end
 
-edges(~any(edges,2),:) = [];
-[nedges, temp] = size(edges);
-for i=1:1:nedges
-   edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7))); 
 end
+
+toc
 %%
 %{
 for s = 0:1:nscans-1
@@ -273,97 +284,58 @@ for s = 0:1:nscans-1
     end
 end
 %}
-toc
+% toc
 % figure;
-subplot(2,1,2);
-image(img_matrix);
+% subplot(3,1,2);
+% image(img_matrix);
 % drawnow;
 frame = frame + 1;
 
 %%
 disp('======= Segment Graph     =======');
+g.min_size = 100;
+g.c = 0.30;
+g.n = 1.0;
+% tic
+[nodes, g] = segment_graph(nodes, edges, g);
+% toc
+%     %%
+disp('======= plot image  =======');
 tic
-sort_edges = sortrows(edges, 4);
-
-threshold = zeros(g.nnodes, 1);
-i = 1:1:g.nnodes;
-g.c = 2.5;
-g.n = 0.3;
-threshold(i,1) = g.c/1;
-threshold(i,2) = g.n/1;
-u = universe;
-u.initialize(g.nnodes);
-for i=1:1:nedges
-    a = u.find(sort_edges(i,1));
-    b = u.find(sort_edges(i,2));
-    if(sort_edges(i,3) ~= g.NO_EDGE)
-        if (a ~= b)
-%             if(sort_edges(i,3) < threshold(a,1) && sort_edges(i,3) < threshold(b,1))
-%                 u.join(a,b);
-%                 a = u.find(a);
-%                 threshold(a,1) = sort_edges(i,3) + ( g.c/u.size(a));
-%             end
-            if(sort_edges(i,4) < threshold(a,2) && sort_edges(i,4) < threshold(b,2))
-                u.join(a,b);
-                a = u.find(a);
-                threshold(a,2) = sort_edges(i,4) + ( g.n/u.size(a));
-            end
-        end
-    end
-end
-toc
-%% enforce min zie
-% %{
-disp('======= Enforce miz_size  =======');
-tic
-min_size = 100;
-for i=1:1:nedges
-   a = u.find(sort_edges(i,1));
-   b = u.find(sort_edges(i,2));
-   if(sort_edges(i,3) ~= g.NO_EDGE)
-       if ((a ~= b) && (u.size(a) < min_size) || (u.size(b) < min_size))
-           u.join(a,b);
-       end
-   end
-end
-num_ccs = u.num_sets();
-toc
-% %}
+plot_image(deci_img, nodes(:,8), g);
+toc 
 %%
-for i=1:1:g.nnodes
-   if nodes(i,4) ~= 0
-       nodes(i,8) = u.find(i);
-   else
-       nodes(i, 8) = 0;
-   end
-end
+%{
+disp('======= plot segment clouds  =======');
+tic
 figure;
 hold on;
 axis equal;
-c1 = colormap(jet(g.nnodes));
-r1 = randperm(g.nnodes);
+c1 = colormap(jet(100));
+r1 = randperm(100);
+% h = plot3(nodes(1,1),nodes(1,2),nodes(1,3)*-1, '.', 'color', c1(r1(nodes(1,8)),1:3));
+xlim([-80, 80]);
+ylim([-80, 80]);
+zlim([-3, 3]);
+% set(gca,'LegendColorbarListeners',[]); 
+% setappdata(gca,'LegendColorbarManualSpace',1);
+% setappdata(gca,'LegendColorbarReclaimSpace',1);
+set(gcf,'Visible','off');
+% set(h,'EraseMode','none');
+% plot3(nodes(1,1),nodes(1,2),nodes(1,3)*-1, '.', 'color', c1(r1(nodes(1,8)),1))
 % colorbar;
 for i = 1:1:g.nnodes
-    plot3(nodes(i,1),nodes(i,2),nodes(i,3)*-1, '.', 'color', c1(r1(nodes(i,8)),:))
+    if(nodes(i,4) ~= 0)
+        plot3(nodes(i,1),nodes(i,2),nodes(i,3)*-1, '.', 'color', c1(r1(mod(nodes(i,8),100)+1),1:3))
+%         set(h, 'xdata', nodes(i,1), 'ydata', nodes(i,2), 'zdata', nodes(i,3), 'color', c1(r1(nodes(i,8)),1:3))
+    end
 end
-delete c;
-delete r;
-%%
-disp('======= plot image  =======');
-tic
-temp_img = zeros(g.nscans, g.nranges);
-cm = colormap(jet(100));
-r = randperm(100);
-for s = 0:1:g.nscans-1
-   for ri=0:1:g.nranges-1
-       idx = s* g.nranges + ri;
-       temp_img(s+1,ri+1) = mod(nodes(idx+1,8), 100);
-   end
-end
-figure;
-image(temp_img);
-colormap(cm);
-toc       
+set(gcf,'Visible','on');
+% delete c;
+% delete r;
+toc
+%}
+      
 %% test
 % figure(3);
 nstart = 1;
@@ -377,3 +349,34 @@ nend = g.nnodes;
 %     display('test');
 % end
 
+%%
+%{
+clc;
+d = zeros(g.nedges,2);
+disp('======= c1  =======');
+tic
+for i=1:1:g.nedges
+    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
+        edges(i,3) = g.NO_EDGE;
+    else
+%         edges(i,3) = pdist([nodes(edges(i,1),1:3); nodes(edges(i,2),1:3)], 'euclidean');
+        edges(i,3) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
+    end
+    edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));
+end
+toc
+disp('======= c2  =======');
+tic
+for i=1:1:g.nedges
+    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
+        d(i,1) = g.NO_EDGE;
+        d(i,2) = g.NO_EDGE;
+    else
+%         d(i,1) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
+        d(i,1) = hello(nodes(edges(i,1),1:3), nodes(edges(i,2),1:3));
+        d(i,2) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));
+    end;
+    
+end
+toc
+%}
