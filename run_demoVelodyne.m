@@ -196,21 +196,21 @@ img_size = size(img);
 g.nscans = img_size(1);
 g.nranges = img_size(2);
 img_matrix = cast(img, 'double')/500;
-g.NUM_EDGES = 9;
+g.NUM_EDGES = 4;
 g.NO_EDGE = -1;
 
 % img1 = imread(sprintf('%s/scan%05d_SLIC.png',base_dir,frame));
 % img = img;
 disp('======= Down Sampling     =======');
 g.deci_s = 1;
-g.deci_r = 1;
+g.deci_r = 5;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
 
 g.nnodes = g.nscans * g.nranges;
 nodes = zeros(g.nnodes, 8);
-edges = zeros(g.nnodes, 5);
+% edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 3);
 
 figure;
 subplot(2,1,1);
@@ -228,6 +228,8 @@ toc
 disp('======= Build Graph       =======');
 tic
 [nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
+% idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
+% edges(:,:) = edges(idx,:);
 %{
 for s = 0:1:nscans-1
     for r=0:1:nranges-1
@@ -271,12 +273,32 @@ image(img_matrix);
 % drawnow;
 frame = frame + 1;
 
-
+%%
+sort_edges = sortrows(edges, 3);
+[nedges, temp] = size(sort_edges); 
+threshold = zeros(g.nnodes, 1);
+i = 1:1:g.nnodes;
+g.c = 10;
+threshold(i) = g.c/1;
+u = universe;
+u.initialize(g.nnodes);
+for i=1:1:nedges
+    a = u.find(sort_edges(i,1));
+    b = u.find(sort_edges(i,2));
+    if (a ~= b)
+        if(sort_edges(i,3) < threshold(a) && sort_edges(i,3) < threshold(b))
+            u.join(a,b);
+            a = u.find(a);
+            threshold(a) = sort_edges(i,3) + ( g.c/u.size(a));
+        end
+    end
+end
+num_ccs = u.num_sets();
 %% test
 % figure(3);
 nstart = 1;
 nend = g.nnodes;
-plot_nodes(nodes, nstart, nend)
+% plot_nodes(nodes, nstart, nend)
 
 %%
 % clc
