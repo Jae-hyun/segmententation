@@ -192,11 +192,10 @@ base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
-img_size = size(img);
 [g.nscans, g.nranges] = size(img);
 img_matrix = cast(img, 'double')/500;
 g.NUM_EDGES = 4;
-g.NO_EDGE = -100;
+g.NO_EDGE = -1;
 
 % img1 = imread(sprintf('%s/scan%05d_SLIC.png',base_dir,frame));
 % img = img;
@@ -234,6 +233,7 @@ g.nedges = size(edges,1);
 %%
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
 disp('======= Compute Edge Weights =======');
+g.max_d_weight = 0.2;
 tic
 for i=1:1:g.nedges
     if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
@@ -242,6 +242,11 @@ for i=1:1:g.nedges
     else
         edges(i,3) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
         edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));        
+    end
+    
+    if edges(i,3) > (round(edges(i,1)/870)+1 * (1/64) )
+%         edges(i,3) = g.NO_EDGE;
+        edges(i,4) = g.NO_EDGE;
     end
 
 end
@@ -294,12 +299,13 @@ frame = frame + 1;
 %%
 disp('======= Segment Graph     =======');
 g.min_size = 100;
+% g.num_ccs = 0;
 g.c = 0.30;
-g.n = 1.0;
+g.n = 1.5;
 % tic
 [nodes, g] = segment_graph(nodes, edges, g);
 % toc
-%     %%
+    %%
 disp('======= plot image  =======');
 tic
 plot_image(deci_img, nodes(:,8), g);
@@ -341,7 +347,8 @@ toc
 nstart = 1;
 nend = g.nnodes;
 % plot_nodes(nodes, nstart, nend)
-
+% figure;
+% plot(edges(:,3), 'r.');
 %%
 % clc
 % a = [3, 1, 3];
