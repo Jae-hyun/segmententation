@@ -202,13 +202,15 @@ g.NO_EDGE = -1;
 disp('======= Down Sampling     =======');
 g.deci_s = 1;
 g.deci_r = 1;
+g.img_scan_start = 250;
+g.img_scan_end = 640;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
 
 g.nnodes = g.nscans * g.nranges;
-nodes = zeros(g.nnodes, 8);
-edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 3);
+nodes = zeros(g.nnodes, 10);
+edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 5);
 
 
 
@@ -233,26 +235,34 @@ g.nedges = size(edges,1);
 %%
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
 disp('======= Compute Edge Weights =======');
-g.max_d_weight = 0.2;
+g.max_d_weight = 5.0;
+g.w = 0.7;
 tic
 for i=1:1:g.nedges
     if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
         edges(i,3) = g.NO_EDGE;
         edges(i,4) = g.NO_EDGE;
+        edges(i,5) = g.NO_EDGE;
     else
         edges(i,3) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
-        edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));        
+        edges(i,4) = abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));
+        if edges(i,3) > (g.max_d_weight)
+            edges(i,3) = g.NO_EDGE;
+            edges(i,4) = g.NO_EDGE;
+            %         edges(i,5) = g.NO_EDGE;
+        end
+        if edges(i,3) ~= g.NO_EDGE
+            edges(i,5) = (1-edges(i,4))*edges(i,4) + (1-edges(i,4))*(edges(i,3)/g.max_d_weight);
+        end
     end
     
-    if edges(i,3) > (round(edges(i,1)/870)+1 * (1/64) )
-%         edges(i,3) = g.NO_EDGE;
-        edges(i,4) = g.NO_EDGE;
-    end
+%     if edges(i,3) > (round(edges(i,1)/870)+1 * (1/64) )
+
 
 end
 
 toc
-%%
+% %%
 %{
 for s = 0:1:nscans-1
     for r=0:1:nranges-1
@@ -296,19 +306,43 @@ end
 % drawnow;
 frame = frame + 1;
 
-%%
+% %%
 disp('======= Segment Graph     =======');
-g.min_size = 100;
+g.min_size = 10;
 % g.num_ccs = 0;
 g.c = 0.30;
 g.n = 1.5;
+
+% %%
+% g.method = 3;
+% % tic
+% [nodes(:,8), g] = segment_graph(nodes(:,4), edges, g);
+% % toc
+% disp('======= plot image  =======');
 % tic
-[nodes, g] = segment_graph(nodes, edges, g);
-% toc
+% plot_image(deci_img, nodes(:,8), g);
+% toc 
+
+% g.method = 4;
+% % tic
+% [nodes(:,9), g] = segment_graph(nodes(:,4), edges, g);
+% % toc
+% 
     %%
+
+% disp('======= plot image  =======');
+% tic
+% plot_image(deci_img, nodes(:,9), g);
+% toc 
+% % %
+g.method = 5;
+g.nnc = 0.5;
+% tic
+[nodes(:,10), g] = segment_graph(nodes(:,4), edges, g);
+% toc
 disp('======= plot image  =======');
 tic
-plot_image(deci_img, nodes(:,8), g);
+plot_image(deci_img, nodes(:,10), g);
 toc 
 %%
 %{

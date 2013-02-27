@@ -12,6 +12,17 @@ function plot_image(deci_img,nodes, g)
     set(f, 'Position',[fullscreen(3)/5, fullscreen(4)/4, 870*1.5, 128*4]);
     subplot(2,1,1);
     image(deci_img);
+    axis image;
+    grid on;
+    %# grid domains
+    xg = 0:g.nranges/4:g.nranges;
+    yg = 0:11:g.nscans;
+    %# label coordinates
+    [xlbl, ylbl] = meshgrid(xg+10, yg+5);
+    %# create cell arrays of number labels
+    lbl = strtrim(cellstr(num2str((1:numel(xlbl))')));
+    text(xlbl(:), ylbl(:), lbl(:),'color','w',...
+        'HorizontalAlignment','center','VerticalAlignment','middle');
     subplot(2,1,2);
     image(temp_img);
     colormap(jet(100));
