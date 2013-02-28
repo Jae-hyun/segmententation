@@ -385,10 +385,10 @@ nstart = 1;
 nend = g.nnodes;
 % plot_nodes(nodes, nstart, nend)
 % figure;
-hold on;
-    r1 = edges(nstart:g.nedges,3);
-    e1 = edges(nstart:g.nedges,1);
-    e2 = edges(nstart:g.nedges,2);
+% hold on;
+%     r1 = edges(nstart:g.nedges,3);
+%     e1 = edges(nstart:g.nedges,1);
+%     e2 = edges(nstart:g.nedges,2);
 test_edges = zeros(g.nedges,5);   
 size_test_edges = 1;
 for i=1:1:g.nedges
