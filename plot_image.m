@@ -12,7 +12,7 @@ function plot_image(deci_img,nodes, g)
     set(f, 'Position',[fullscreen(3)/5, fullscreen(4)/4, 870*1.5, 128*4]);
     subplot(2,1,1);
     image(deci_img);
-    axis image;
+%     axis image;
     grid on;
     %# grid domains
     xg = 0:g.nranges/4:g.nranges;
@@ -25,5 +25,7 @@ function plot_image(deci_img,nodes, g)
         'HorizontalAlignment','center','VerticalAlignment','middle');
     subplot(2,1,2);
     image(temp_img);
+%     axis image;
+    grid on;   
     colormap(jet(100));
 end
