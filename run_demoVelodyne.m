@@ -193,6 +193,7 @@ nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 [g.nscans, g.nranges] = size(img);
+g.yaw_resolution = 360/g.nranges;
 img_matrix = cast(img, 'double')/500;
 g.NUM_EDGES = 4;
 g.NO_EDGE = 999;
@@ -202,8 +203,10 @@ g.NO_EDGE = 999;
 disp('======= Down Sampling     =======');
 g.deci_s = 1;
 g.deci_r = 1;
-g.img_scan_start = 1;
-g.img_scan_end = 870;
+% g.img_scan_start = 1;
+% g.img_scan_end = 870;
+g.img_scan_start = 300;
+g.img_scan_end = 600;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -235,7 +238,7 @@ g.nedges = size(edges,1);
 %%
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
 disp('======= Compute Edge Weights =======');
-g.max_d_weight = 3.0;
+g.max_d_weight = 1.0;
 g.w = 0.7;
 tic
 for i=1:1:g.nedges
@@ -246,7 +249,7 @@ for i=1:1:g.nedges
     else
         edges(i,3) = sqrt((nodes(edges(i,1),1) - nodes(edges(i,2),1))^2 + (nodes(edges(i,1),2) - nodes(edges(i,2),2))^2 + (nodes(edges(i,1),3) - nodes(edges(i,2),3))^2 );
         edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));
-        if edges(i,3) > (g.max_d_weight)
+        if edges(i,3) > (g.max_d_weight*nodes(edges(i,1),4)/10)
             edges(i,3) = g.NO_EDGE;
             edges(i,4) = g.NO_EDGE;
             %         edges(i,5) = g.NO_EDGE;
@@ -308,10 +311,10 @@ frame = frame + 1;
 
 % %%
 disp('======= Segment Graph     =======');
-g.min_size = 100;
+g.min_size = 10;
 % g.num_ccs = 0;
-g.c = 0.3;
-g.n = 0.5;
+g.c = 0.1;
+g.n = 0.7;
 g.nnc = 0.5;
 % %%
 % g.method = 3;
@@ -331,8 +334,8 @@ g.method = 4;
 % 
 %%
 disp('======= plot image  =======');
-tic
-plot_image(deci_img, nodes(:,9), g);
+        tic
+plot_image(deci_img, nodes, g);
 toc 
 % % %
 % g.method = 5;
@@ -382,7 +385,42 @@ nstart = 1;
 nend = g.nnodes;
 % plot_nodes(nodes, nstart, nend)
 % figure;
-% plot(edges(:,3), 'r.');
+hold on;
+    r1 = edges(nstart:g.nedges,3);
+    e1 = edges(nstart:g.nedges,1);
+    e2 = edges(nstart:g.nedges,2);
+test_edges = zeros(g.nedges,5);   
+size_test_edges = 1;
+for i=1:1:g.nedges
+    if edges(i,3) ~= g.NO_EDGE
+        test_edges(size_test_edges,:) = edges(i,:);
+        size_test_edges = size_test_edges + 1;
+    end
+end
+%%
+xx1 = zeros(size_test_edges-1, 2);
+yy1 = zeros(size_test_edges-1, 2);
+zz1 = zeros(size_test_edges-1, 2);
+for i=1:1:size_test_edges-1
+    x1 = nodes(test_edges(i,1:2),1);
+    y1 = nodes(test_edges(i,1:2),2);
+    z1 = nodes(test_edges(i,1:2),3);
+    xx1(1:2,i) = x1;
+    yy1(1:2,i) = y1;
+    zz1(1:2,i) = z1;
+end
+%%
+    figure;hold on;
+    plot3(xx1, yy1, zz1*-1, 'r.');
+    line(xx1, yy1, zz1*-1);
+% end
+%     z = z1(idnzero);
+    
+% x1 = nodes(test_edges(:,1:2),1);
+% y1 = nodes(test_edges(:,1:2),2);
+% z1 = nodes(test_edges(:,1:2),3);
+% plot3(x1, y1, z1, 'r.');
+% plot3(x1, y1, z1, 'b-');
 %%
 % clc
 % a = [3, 1, 3];
@@ -391,6 +429,7 @@ nend = g.nnodes;
 % end
 
 %%
+
 %{
 clc;
 d = zeros(g.nedges,2);
@@ -421,3 +460,13 @@ for i=1:1:g.nedges
 end
 toc
 %}
+%%
+% %{
+k = mod(nodes(:,9), 1000);
+figure('color','white');
+plot3k({nodes(:,1)*-1 nodes(:,2) nodes(:,3)*-1},...
+    'ColorData',k,'ColorRange',[0 1000],'Marker',{'o',2},...
+    'Labels',{'Peaks','Radius','','Intensity','Lux'},...
+    'PlotProps',{'FontSize',12});
+axis equal;
+% %}
