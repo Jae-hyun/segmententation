@@ -9,7 +9,7 @@ for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
 %       nodes(idx+1,1) = img_matrix(s+1, r+1); 
-      nodes(idx+1, 1:3) = range2xyz(img_matrix(s+1,r+1), yaw_angle(r+1), vert_angle(floor(s*vert_resolution)+1));
+      nodes(idx+1, 1:3) = range2xyz(img_matrix(s+1,r+1), yaw_angle(floor(r*g.deci_r)+1), vert_angle(floor(s*vert_resolution)+1));
       nodes(idx+1, 4) = img_matrix(s+1,r+1);
    end
 end

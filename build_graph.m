@@ -20,18 +20,18 @@ function [normals, edges] = build_graph(nodes, g)
                 edges(num,2) = idy + 1;
                 num = num + 1;
             end
-            if s < nscans -1 && r < nranges -1
-                idy = (s+1) * nranges + (r+1);
-                edges(num,1) = idx + 1;
-                edges(num,2) = idy + 1;
-                num = num + 1;
-            end
-            if s > 0 && r < nranges -1
-                idy = (s-1) * nranges + (r+1);
-                edges(num,1) = idx + 1;
-                edges(num,2) = idy + 1;
-                num = num + 1;
-            end
+%             if s < nscans -1 && r < nranges -1
+%                 idy = (s+1) * nranges + (r+1);
+%                 edges(num,1) = idx + 1;
+%                 edges(num,2) = idy + 1;
+%                 num = num + 1;
+%             end
+%             if s > 0 && r < nranges -1
+%                 idy = (s-1) * nranges + (r+1);
+%                 edges(num,1) = idx + 1;
+%                 edges(num,2) = idy + 1;
+%                 num = num + 1;
+%             end
         end
     end
     for s = 0:1:nscans-1
