@@ -192,6 +192,7 @@ base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
+% image(img_matrix);
 [g.nscans, g.nranges] = size(img);
 g.yaw_resolution = 360/g.nranges;
 img_matrix = cast(img, 'double')/500;
@@ -202,11 +203,11 @@ g.NO_EDGE = 999;
 % img = img;
 disp('======= Down Sampling     =======');
 g.deci_s = 1;
-g.deci_r = 7;
+g.deci_r = 1;
 g.img_scan_start = 1;
-% g.img_scan_end = 870;
+g.img_scan_end = 870;
 % g.img_scan_start = 100;
-g.img_scan_end = 500;
+% g.img_scan_end = 500;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -229,9 +230,17 @@ toc
 disp('======= Build Graph       =======');
 tic
 [nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
+
 % nodes(:,5) = smooth(nodes(:,5));
 % nodes(:,6) = smooth(nodes(:,6));
 % nodes(:,7) = smooth(nodes(:,7));
+toc
+% Gradient
+tic
+[A, B] = gradient(deci_img);
+% g = (abs(A)*2+abs(B)*1.5);
+g_mag = sqrt(A.^2+B.^2);
+c = atan2(B,A);
 toc
 edges(~any(edges,2),:) = [];
 g.nedges = size(edges,1);
@@ -314,7 +323,7 @@ disp('======= Segment Graph     =======');
 g.min_size = 10;
 % g.num_ccs = 0;
 g.c = 0.1;
-g.n = 0.7;
+g.n = 0.5;
 g.nnc = 0.5;
 % %%
 % g.method = 3;
@@ -335,7 +344,7 @@ g.method = 4;
 %%
 disp('======= plot image  =======');
 tic
-plot_image(deci_img, nodes, g);
+plot_image(deci_img, nodes, c, g);
 toc 
 % % %
 % g.method = 5;
@@ -383,12 +392,12 @@ toc
 % figure(3);
 nstart = 1;
 nend = g.nnodes;
-plot_nodes(nodes, nstart, nend)
+% plot_nodes(nodes, nstart, nend)
 
 %%
 disp('======= plot graph  =======');
 tic
-plot_graph(nodes(:,1:3), edges(:,1:3), g);
+% plot_graph(nodes(:,1:3), edges(:,1:3), g);
 toc
 % end
 %     z = z1(idnzero);
@@ -399,13 +408,62 @@ toc
 % plot3(x1, y1, z1, 'r.');
 % plot3(x1, y1, z1, 'b-');
 %%
+% imshow(label2rgb(nodes(:,9)));
 % clc
 % a = [3, 1, 3];
 % if a(1,1:3) == 3
 %     display('test');
 % end
+figure;
+H = fspecial('disk',0.5);
+sharpened = imfilter(deci_img,H,'replicate');
+% subplot(2,2,4); 
+image(sharpened); title('Sharpened Image');
+tic
+[m_i, d_i] = imgradient(sharpened);
+toc
+figure;
+subplot(2,1,1);
+imagesc(c.*180/3.14);
+subplot(2,1,2);
+imagesc(d_i*-1);
 
+
+% figure;
+% image(m_i);
+% imshowpair(m_i, d_i, 'montage');
+% figure;
+% d = smooth(c);
+% myfilter = fspecial('gaussian',[3 3], 0.5);
+% d = filter2(myfilter, c);
+% imshow(g_mag);
+% colormap(lines(100));
+% quiver(g, 'color', 'r');
 %%
+%{
+[rows, columns] = size(deci_img);
+[dx, dy] = gradient(double(deci_img));
+[x y] = meshgrid(1:columns, 1:rows);
+c = atan2(B,A);
+u = dx;
+v = dy;
+image(deci_img);
+hold on
+quiver(u, v, 'color', 'w')
+%}
+%%
+% gg = bwmorph(deci_img,'thin',Inf);
+% figure,imagesc(gg);
+%{
+gg = edge(deci_img, 'canny');
+figure;
+imagesc(gg);
+%}
+%%
+% figure;
+% x = gradient(deci_img);
+% figure;
+% imshow(x);
 
 %{
 clc;
@@ -447,3 +505,12 @@ plot3k({nodes(:,1)*-1 nodes(:,2) nodes(:,3)*-1},...
     'PlotProps',{'FontSize',12});
 axis equal;
 %}
+%%
+clear all; close all; clc;
+base_dir  = 'C:\Users\Administrator\Downloads\urban_scenes_velodyne\urban_scenes_velodyne';
+frame = 1;
+% delimiterIn = ' ';
+% filename = sprintf('%s/scene-%d',base_dir,frame);
+% data = importdata(sprintf('%s/scene-%d',base_dir,frame), delimiterIn);
+data = dataset('file',sprintf('%s/scene-%d',base_dir,frame),...
+                   'delimiter',' ');

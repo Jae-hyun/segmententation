@@ -18,6 +18,8 @@ function n = compute_normal(sidx, ridx,nranges, scans)
             i = i + 1;
         end
     end
-    [coeff] = princomp(points);
+%     [coeff] = princomp(points);
+    [coeff] = pca(points);
+
     n = coeff(:,3);
 end

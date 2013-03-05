@@ -1,4 +1,4 @@
-function plot_image(deci_img,nodes, g)
+function plot_image(deci_img,nodes,grad_img, g)
     temp_img = zeros(g.nscans, g.nranges);
 %     cm = colormap(jet(100));
     ncolor = randperm(100);
@@ -13,8 +13,8 @@ function plot_image(deci_img,nodes, g)
     end
     f = figure;
     fullscreen = get(0,'ScreenSize');
-    set(f, 'Position',[fullscreen(3)/5, fullscreen(4)/5, 870*1.5, 128*6]);
-    subplot(3,1,1);
+    set(f, 'Position',[fullscreen(3)/6, 0, 870*1.5, 128*6]);
+    subplot(4,1,1);
         colormap(jet(200));
     image(deci_img);
 
@@ -30,7 +30,7 @@ function plot_image(deci_img,nodes, g)
 %     lbl = strtrim(cellstr(num2str((1:numel(xlbl))')));
 %     text(xlbl(:), ylbl(:), lbl(:),'color','w',...
 %         'HorizontalAlignment','center','VerticalAlignment','middle');
-    subplot(3,1,2);
+    subplot(4,1,2);
 % figure;
         colormap(jet(100));
     image(temp_img);
@@ -53,9 +53,13 @@ function plot_image(deci_img,nodes, g)
 %     f1 = figure;
 %     fullscreen = get(0,'ScreenSize');
 %     set(f1, 'Position',[fullscreen(3)/5, fullscreen(4)/4, 870*1.5, 128*4]);
-    subplot(3,1,3);
+    subplot(4,1,3);
 %         colormap bone;
     image(temp_img1);
+    
+    subplot(4,1,4);
+%         colormap bone;
+    imagesc(grad_img);
     
     
 
