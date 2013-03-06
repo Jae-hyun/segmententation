@@ -2,7 +2,8 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     tic
     sort_edges = zeros(g.nedges,6);
 %     if g.method == 6
-        sort_edges = sortrows(edges, 4);
+        sort_edges = sortrows(edges, 3);
+%         sort_edges = edges;
 %     else
 %         sort_edges = sortrows(edges, g.method);
 %     end
@@ -19,9 +20,10 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     u = universe;
     u.initialize(g.nnodes);
     for i=1:1:g.nedges
+%     for i=g.nedges:-1:1
         a = u.find(sort_edges(i,1));
         b = u.find(sort_edges(i,2));
-        if(sort_edges(i,4) ~= g.NO_EDGE || sort_edges(i,4) ~= 0)
+        if(sort_edges(i,4) ~= g.NO_EDGE || sort_edges(i,4) ~= 0 && isnan(edges(i,3)) ~= 1)
             if (a ~= b)
                 if g.method == 3
                     if(sort_edges(i,3) < threshold(a,1) && sort_edges(i,3) < threshold(b,1))
@@ -90,12 +92,12 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     for i=1:1:g.nedges
        a = u.find(sort_edges(i,1));
        b = u.find(sort_edges(i,2));
-       if(sort_edges(i,4) ~= g.NO_EDGE)
+       if(sort_edges(i,3) ~= g.NO_EDGE) && (isnan(edges(i,3)) ~= 1)
            if ((a ~= b) && (u.size(a) < g.min_size) || (u.size(b) < g.min_size)) 
                u.join(a,b);
            end
-       else
-           break;
+%        else
+%            break;
        end
     end
         toc
@@ -103,7 +105,7 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     for i=1:1:g.nedges
         sort_edges(i,6) = u.find(sort_edges(i,1));
     end
-    
+    g.num_ccs = u.num_sets();
     for i=1:1:g.nnodes
        if nodes_in(i,1) ~= 0
            p = u.find(i);
@@ -112,7 +114,8 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
            end
        else
            nodes_out(i, 1) = 0;
+           g.num_ccs = g.num_ccs - 1;
        end
     end
-        g.num_ccs = u.num_sets();
+        
 end

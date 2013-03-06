@@ -14,9 +14,9 @@ function plot_image(deci_img,nodes,grad_img, g)
     f = figure;
     fullscreen = get(0,'ScreenSize');
     set(f, 'Position',[fullscreen(3)/6, 0, 870*1.5, 128*6]);
-    subplot(4,1,1);
-        colormap(jet(200));
-    image(deci_img);
+    subplot(5,1,1);
+        colormap(jet(100));
+    imagesc(deci_img);
 
 %     axis image;
     grid on;
@@ -30,7 +30,7 @@ function plot_image(deci_img,nodes,grad_img, g)
 %     lbl = strtrim(cellstr(num2str((1:numel(xlbl))')));
 %     text(xlbl(:), ylbl(:), lbl(:),'color','w',...
 %         'HorizontalAlignment','center','VerticalAlignment','middle');
-    subplot(4,1,2);
+    subplot(5,1,2);
 % figure;
         colormap(jet(100));
     image(temp_img);
@@ -53,14 +53,40 @@ function plot_image(deci_img,nodes,grad_img, g)
 %     f1 = figure;
 %     fullscreen = get(0,'ScreenSize');
 %     set(f1, 'Position',[fullscreen(3)/5, fullscreen(4)/4, 870*1.5, 128*4]);
-    subplot(4,1,3);
+    subplot(5,1,3);
 %         colormap bone;
     image(temp_img1);
     
-    subplot(4,1,4);
+    subplot(5,1,4);
 %         colormap bone;
-    imagesc(grad_img);
+    imagesc(grad_img.*180/3.14);
+    temp_grad = grad_img.*180/3.14;
+%     myfilter = fspecial('gaussian',[3 3], 0.5);
+%     temp_grad = filter2(myfilter, temp_grad);
+    for s = 1:1:g.nscans
+        for r=1:1:g.nranges
+            if (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -100
+                temp_grad(s, r) = -180;
+%             elseif (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -90
+%                 temp_grad(s, r) = 180;
+            end
+        end
+    end
+%     figure;
+    subplot(5,1,5);
+    imagesc(temp_grad);
     
+    figure;
+    [t_m, t_d] = imgradient(temp_grad);
+    imagesc(t_m);
+%     tic
+%     [m_i, d_i] = imgradient(temp_img1);
+%     toc
+%     figure;
+%     subplot(2,1,1);
+%     imagesc(m_i);
+%     subplot(2,1,2);
+%     imagesc(d_i);
     
 
 end

@@ -18,8 +18,10 @@ function n = compute_normal(sidx, ridx,nranges, scans)
             i = i + 1;
         end
     end
-%     [coeff] = princomp(points);
-    [coeff] = pca(points);
+    % ~ matlab R2011
+    [coeff] = princomp(points);
+    % matlab R2012b
+%     [coeff] = pca(points);
 
     n = coeff(:,3);
 end
