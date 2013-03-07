@@ -59,16 +59,21 @@ function plot_image(deci_img,nodes,grad_img, g)
     
     subplot(5,1,4);
 %         colormap bone;
+%     imagesc(abs(grad_img.*180/3.14));
     imagesc(grad_img.*180/3.14);
+%     temp_grad = abs(grad_img.*180/3.14);
     temp_grad = grad_img.*180/3.14;
 %     myfilter = fspecial('gaussian',[3 3], 0.5);
 %     temp_grad = filter2(myfilter, temp_grad);
     for s = 1:1:g.nscans
         for r=1:1:g.nranges
             if (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -100
+%             if (temp_grad(s, r) >= 80) && temp_grad(s, r) <= 100
                 temp_grad(s, r) = -180;
 %             elseif (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -90
 %                 temp_grad(s, r) = 180;
+            else
+                temp_grad(s, r) = 0;
             end
         end
     end
@@ -76,9 +81,9 @@ function plot_image(deci_img,nodes,grad_img, g)
     subplot(5,1,5);
     imagesc(temp_grad);
     
-    figure;
-    [t_m, t_d] = imgradient(temp_grad);
-    imagesc(t_m);
+%     figure;
+%     [t_m, t_d] = imgradient(temp_grad);
+%     imagesc(t_m);
 %     tic
 %     [m_i, d_i] = imgradient(temp_img1);
 %     toc

@@ -190,7 +190,8 @@ plot_test_HM3(cloud, remainderqueue); % display the small region after segmentat
 %% 
 base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
-frame = 11000;
+% frame = 11011;
+frame = 1406;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 % image(img_matrix);
 [g.nscans, g.nranges] = size(img);
@@ -246,6 +247,8 @@ tic
 % g_mag = sqrt(A.^2+B.^2);
 % c = atan2(B,A);
 disp('======= Compute Direction of Gradient =======');
+%     myfilter = fspecial('gaussian',[3 3], 0.5);
+%     deci_img = filter2(myfilter, deci_img);
 [g_mag, g_dir, gx, gy] = imgradient(deci_img);
 toc
 for s = 0:1:g.nscans-1
@@ -572,3 +575,28 @@ plot3k({nodes(:,1)*-1 nodes(:,2) nodes(:,3)*-1},...
 axis equal;
 clear k;
 %}
+%% plot grid mesh
+% cloud = nodes(:,1:3);
+%{
+plane.index=1:size(nodes(:,1:3),1);
+plane.level=1;
+p.sensortype = 1; % 1: LRF
+disp('segmenting...');
+
+tic
+[plane, p] = firstsegmentation(nodes(:,1:3),plane,p);
+toc
+%}
+% plot_test_HM2(nodes(:,1:3), plane); % display the result after the first segmentation
+
+%% plot point clouds in pcd_viewer
+k = mod(nodes(:,9), g.num_ccs)+1;
+fpcd = figure;
+rgb_colormap = colormap(JET(g.num_ccs));
+rgb_color = rgb_colormap(k,:);
+close(fpcd);
+points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
+pclviewer(points, '-pc 100');
+% 
+clear k; clear rgb_map;clear rgb_color;
+
