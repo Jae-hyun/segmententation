@@ -1,4 +1,4 @@
-function [normals, edges] = build_graph(nodes, g)
+function [normals, edges] = build_graph(nodes, labels, g)
     nscans = g.nscans;
     nranges = g.nranges;
     normals = zeros(nscans*nranges,3);
@@ -8,32 +8,46 @@ function [normals, edges] = build_graph(nodes, g)
     for s = 0:1:nscans-1
         for r=0:1:nranges-1
             idx = s* nranges + r;
-            if r < nranges -1
-                idy = s * nranges + (r+1);
-                edges(num,1) = idx + 1;
-                edges(num,2) = idy + 1;
-                num = num + 1;
+            % Edge Assign
+            if labels(idx+1) ~= g.label.gound
+                if r < nranges -1
+                    idy = s * nranges + (r+1);
+                    if labels(idy+1) ~= g.label.gound
+                        edges(num,1) = idx + 1;
+                        edges(num,2) = idy + 1;
+                        num = num + 1;
+                    end
+                end
+                if s < nscans -1
+                    idy = (s+1) * nranges + (r);
+                    if labels(idy+1) ~= g.label.gound
+                        edges(num,1) = idx + 1;
+                        edges(num,2) = idy + 1;
+                        num = num + 1;
+                    end
+                end
+                if s < nscans -1 && r < nranges -1
+                    idy = (s+1) * nranges + (r+1);
+                    if labels(idy+1) ~= g.label.gound
+                        edges(num,1) = idx + 1;
+                        edges(num,2) = idy + 1;
+                        num = num + 1;
+                    end
+                end
+                if s > 0 && r < nranges -1
+                    if labels(idy+1) ~= g.label.gound
+                        idy = (s-1) * nranges + (r+1);
+                        edges(num,1) = idx + 1;
+                        edges(num,2) = idy + 1;
+                        num = num + 1;
+                    end
+                end
             end
-            if s < nscans -1
-                idy = (s+1) * nranges + (r);
-                edges(num,1) = idx + 1;
-                edges(num,2) = idy + 1;
-                num = num + 1;
-            end
-%             if s < nscans -1 && r < nranges -1
-%                 idy = (s+1) * nranges + (r+1);
-%                 edges(num,1) = idx + 1;
-%                 edges(num,2) = idy + 1;
-%                 num = num + 1;
-%             end
-%             if s > 0 && r < nranges -1
-%                 idy = (s-1) * nranges + (r+1);
-%                 edges(num,1) = idx + 1;
-%                 edges(num,2) = idy + 1;
-%                 num = num + 1;
-%             end
         end
     end
+    %% Surface Normals calculation using PCA
+    %{
+    
     for s = 0:1:nscans-1
         for r=0:1:nranges-1
             idx = s* nranges + r;
@@ -47,5 +61,6 @@ function [normals, edges] = build_graph(nodes, g)
             end
         end
     end
+    %}
 
 end

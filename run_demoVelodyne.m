@@ -3,7 +3,7 @@
 % Demonstrates projection of the velodyne points into the image plane
 
 % clear and close everything
-clear all; close all; dbstop error; clc;
+clear all; close all; clc;
 disp('======= KITTI DevKit Demo =======');
 %{
 % options (modify this to select your sequence)
@@ -190,8 +190,8 @@ plot_test_HM3(cloud, remainderqueue); % display the small region after segmentat
 %% 
 base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
-% frame = 11011;
-frame = 1406;
+% frame = 11041;
+frame = 100;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 % image(img_matrix);
 [g.nscans, g.nranges] = size(img);
@@ -201,25 +201,24 @@ img_matrix = cast(img, 'double')/500;
 g.NUM_EDGES = 4;
 g.NO_EDGE = nan;
 clear img
-%%
+%% Down Sampling
 % img1 = imread(sprintf('%s/scan%05d_SLIC.png',base_dir,frame));
 % img = img;
-disp('======= Down Sampling     =======');
+disp('======= Down Sampling =======');
 g.deci_s = 1;
 g.deci_r = 1;
 g.img_scan_start = 1;
 g.img_scan_end = 870;
-% g.img_scan_start = 300;
-% g.img_scan_end = 500;
+% g.img_scan_start = 200;
+% g.img_scan_end = 350;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
-%%
+%% RangeImage to Node
 g.nnodes = g.nscans * g.nranges;
 nodes = zeros(g.nnodes, 10);
 edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 5);
 sorted_edges = zeros((g.nscans-1)*(g.nranges-1)*g.NUM_EDGES, 6);
-
 
 disp('======= RangeImage to XYZ =======');
 tic
@@ -227,50 +226,80 @@ tic
 [nodes(:,1:4)] = read_image_to_nodes(deci_img, g);
 toc
 % nodes = flipud(nodes);
-
-
-%%
-disp('======= Build Graph       =======');
-% node
-% 1: x, 2: y, 3: z, 4: r, 5:nx, 6:ny, 7:nz, 8:dir_grad , 9:ccs
-tic
-[nodes(:,5:7), edges] = build_graph(nodes(:,1:4), g);
-
-% nodes(:,5) = smooth(nodes(:,5));
-% nodes(:,6) = smooth(nodes(:,6));
-% nodes(:,7) = smooth(nodes(:,7));
-toc
 %% Gradient calculation
+disp('======= Compute Gradient Features =======');
 tic
 % [A, B] = gradient(deci_img);
 % % g = (abs(A)*2+abs(B)*1.5);
 % g_mag = sqrt(A.^2+B.^2);
 % c = atan2(B,A);
-disp('======= Compute Direction of Gradient =======');
-%     myfilter = fspecial('gaussian',[3 3], 0.5);
+
+%     myfilter = fspecial('gaussian',[3 3], 0.8);
 %     deci_img = filter2(myfilter, deci_img);
+g.label.gound = 255;
+g.label.objects = 1;
 [g_mag, g_dir, gx, gy] = imgradient(deci_img);
+[g_mag1] = imgradient(g_dir.*180/3.14);
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if g_mag1(s, r) <= 20
+            g_mag1(s, r) = -180;
+        else
+            g_mag1(s, r) = 0;
+        end
+    end
+end
+g.num_ground = 0;
 toc
 for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
       nodes(idx+1, 8) = g_dir(s+1,r+1);
+      % Label Assign - ground and objects
+      if (g_dir(s+1, r+1).*180/3.14 <= -80) && (g_dir(s+1, r+1).*180/3.14 >= -100)
+%           if g_mag1(s+1,r+1) == -180
+              nodes(idx+1, 10) = g.label.gound;
+              g.num_ground = g.num_ground + 1;
+%           else
+%               nodes(idx+1, 10) = g.label.objects;
+%           end
+              
+%             elseif (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -90
+%                 temp_grad(s, r) = 180;
+         
+      else
+          nodes(idx+1, 10) = g.label.objects;
+      end
    end
 end
 clear idx;clear s;clear r;
+%% Build Graph
+disp('======= Build Graph =======');
+% node
+% 1: x, 2: y, 3: z, 4: r, 
+% 5:nx, 6:ny, 7:nz, 8:dir_grad ,
+% 9:ccs 10: objest Label(0: ground 1~: objects)
+tic
+[nodes(:,5:7), edges] = build_graph(nodes(:,1:4), nodes(:,10), g);
+% nodes(:,5) = smooth(nodes(:,5));
+% nodes(:,6) = smooth(nodes(:,6));
+% nodes(:,7) = smooth(nodes(:,7));
+toc
+%% Clear empty edge and resizing edge
 edges(~any(edges,2),:) = [];
 g.nedges = size(edges,1);
-%%
+%% Compute Edge Weights
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
 disp('======= Compute Edge Weights =======');
-% edge
-% 1: a, 2: b, 3: w_dis, 4: w_normal,w_gradient 5:z-axis diff
-g.max_d_weight = 5.0;
+% edge info.
+% 1: a, 2: b, 3: w_dis, 4: w_normal or w_gradient 5:z-axis diff
+g.max_d_weight = 0.1;
+% g.max_d_weight = 0.05;
 g.w = 0.7;
-g.height_weight = 0.005;
+g.height_weight = 0.05;
 tic
 for i=1:1:g.nedges
-    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0
+    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0 || nodes(edges(i,1),10) == 0 || nodes(edges(i,2),10) == 0 
         edges(i,3) = g.NO_EDGE;
         edges(i,4) = g.NO_EDGE;
         edges(i,5) = g.NO_EDGE;
@@ -281,12 +310,15 @@ for i=1:1:g.nedges
 %         edges(i,4) = 1 - abs(nodes(edges(i,1),5:7) * transpose(nodes(edges(i,2),5:7)));
         % gradient
         edges(i,4) = abs(nodes(edges(i,1),8) - nodes(edges(i,2),8));
-%         if edges(i,3) > (g.max_d_weight*nodes(edges(i,1),4))
-%         if edges(i,3) > (g.max_d_weight*edges(i,3))
-        if edges(i,3) > (g.max_d_weight)
-            edges(i,3) = g.NO_EDGE;
-            edges(i,4) = g.NO_EDGE;
-            %         edges(i,5) = g.NO_EDGE;
+        diff_height = abs(nodes(edges(i,1),3) - nodes(edges(i,2),3));
+        if edges(i,3) > min((g.max_d_weight*nodes(edges(i,1),4)), (g.max_d_weight*nodes(edges(i,2),4))) ...
+            || diff_height > min((g.height_weight*nodes(edges(i,1),4)), (g.height_weight*nodes(edges(i,2),4)))
+        %                 || diff_height > 0.2
+    %         if edges(i,3) > (g.max_d_weight)
+                edges(i,3) = g.NO_EDGE;
+                edges(i,4) = g.NO_EDGE;
+                %         edges(i,5) = g.NO_EDGE;
+            
         end
         if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1
 %             edges(i,5) = (1-edges(i,4))*edges(i,4) + (1-edges(i,4))*(edges(i,3)/g.max_d_weight);
@@ -302,58 +334,14 @@ for i=1:1:g.nedges
     end
     
 %     if edges(i,3) > (round(edges(i,1)/870)+1 * (1/64) )
-
-
 end
-
 toc
-% %%
-%{
-for s = 0:1:nscans-1
-    for r=0:1:nranges-1
-        idx = s* nranges + r;
-        %       nodes(idx+1,1) = img_matrix(s+1, r+1);
-        
-        if (s == 0 || s == nscans-1 || r == 0 || r == nranges-1 || img_matrix(s+1, r+1) == 0)
-            for i=0:1:g.NUM_EDGES-1
-                edges(idx+1, i+1) = g.NO_EDGE;
-            end
-        else
-            edges(idx+1, 1) = (s + 0) * nranges + (r + 0)+1;
-            edges(idx+1, 2) = (s + 0) * nranges + (r - 1)+1;
-            edges(idx+1, 3) = (s - 1) * nranges + (r - 1)+1;
-            edges(idx+1, 4) = (s - 1) * nranges + (r + 0)+1;
-            edges(idx+1, 5) = (s - 1) * nranges + (r + 1)+1;
-            % Remove Edges if range == 0
-            if img_matrix(s+1+0, r+1-1) == 0
-                edges(idx+1, 2) = g.NO_EDGE;
-            end
-            if img_matrix(s+1-1, r+1-1) == 0
-                edges(idx+1, 3) = g.NO_EDGE;
-            end
-            if img_matrix(s+1-1, r+1+0) == 0
-                edges(idx+1, 4) = g.NO_EDGE;
-            end
-            if img_matrix(s+1-1, r+1+1) == 0
-                edges(idx+1, 5) = g.NO_EDGE;
-            end
-            % Comput normals
-            nodes(idx+1, 4:6) = compute_normal(s,r, nranges, nodes);
-           
-        end
-    end
-end
-%}
-% toc
-% figure;
-% subplot(3,1,2);
-% image(img_matrix);
-% drawnow;
+
 frame = frame + 1;
 
-% %%
-disp('======= Segment Graph     =======');
-g.min_size = 10;
+%% Segment Graph
+disp('======= Segment Graph =======');
+g.min_size = 5;
 % g.num_ccs = 0;
 g.c = 20.0;
 % normals
@@ -361,23 +349,14 @@ g.c = 20.0;
 % gradient
 g.n = 1.5;
 g.nnc = 0.5;
-% %%
-% g.method = 3;
-% % tic
-% [nodes(:,8), g] = segment_graph(nodes(:,4), edges, g);
-% % toc
-% disp('======= plot image  =======');
-% tic
-% plot_image(deci_img, nodes(:,8), g);
-% toc 
-
 % g.method = 4;
 % [nodes(:,9), g] = segment_graph(nodes(:,4), edges, g);
 
 g.method = 3;
-[nodes(:,9), g, sorted_edges, threshold] = segment_graph(nodes(:,4), edges, g);
+[nodes(:,9), g, sorted_edges, threshold] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
 disp(g.num_ccs);
-%%
+%% gradient image plot
+%{
 % figure;
 % subplot(2,1,1);
 % image(abs(gx)*10000);
@@ -393,11 +372,16 @@ disp(g.num_ccs);
 % figure;
 % imagesc(g_mag1);
 % 
+%}
 %%
-disp('======= plot image  =======');
+disp('======= Plot image =======');
 tic
-plot_image(deci_img, nodes, g_dir, g);
+plot_image(deci_img, nodes, g_dir, g, g_mag);
 toc 
+%%
+% 
+% figure;
+% imagesc(abs(g_dir.*180/pi));
 % % %
 % g.method = 5;
 %%
@@ -440,36 +424,30 @@ set(gcf,'Visible','on');
 toc
 %}
       
-%% test
+%% Plot Node
 % figure(3);
 % g.nstart = 1;
 % g.nend = g.nnodes;
 % plot_nodes(nodes, g.nstart, g.nend)
 
-%%
-% %{
+%% Plot Graph
+%{
 disp('======= plot graph  =======');
 tic
-% plot_graph(nodes(:,1:3), edges(:,1:3), g);
+plot_graph(nodes(:,1:3), edges(:,1:3), g);
 toc
-% %}
-% end
-%     z = z1(idnzero);
-    
-% x1 = nodes(test_edges(:,1:2),1);
-% y1 = nodes(test_edges(:,1:2),2);
-% z1 = nodes(test_edges(:,1:2),3);
-% plot3(x1, y1, z1, 'r.');
-% plot3(x1, y1, z1, 'b-');
-%%
+%}
+%% plot label2rgb
+%{
 % imshow(label2rgb(nodes(:,9)));
 % clc
 % a = [3, 1, 3];
 % if a(1,1:3) == 3
 %     display('test');
 % end
+%}
 %% gradient img plot
-% %{
+%{
 % figure;
 % H = fspecial('disk',0.5);
 % sharpened = imfilter(deci_img,H,'replicate');
@@ -490,8 +468,9 @@ toc
 % imagesc(d_i);
 % subplot(2,1,2);
 % imagesc(m_i);
-% %}
-%%
+%}
+%% edge plot
+%{
 % bw = edge(deci_img.*500);
 % figure;
 % image(bw);
@@ -503,12 +482,13 @@ toc
 % imshow(g_mag);
 % colormap(lines(100));
 % quiver(g, 'color', 'r');
-%%
+%}
+%% gradient vector flow plot
 %{
 [rows, columns] = size(deci_img);
 [dx, dy] = gradient(double(deci_img));
 [x y] = meshgrid(1:columns, 1:rows);
-c = atan2(B,A);
+% c = atan2(B,A);
 u = dx;
 v = dy;
 image(deci_img);
@@ -523,11 +503,6 @@ gg = edge(deci_img, 'canny');
 figure;
 imagesc(gg);
 %}
-%%
-% figure;
-% x = gradient(deci_img);
-% figure;
-% imshow(x);
 %% remove unused value
 clear threshold;
 clear sorted_edges;
@@ -575,7 +550,7 @@ plot3k({nodes(:,1)*-1 nodes(:,2) nodes(:,3)*-1},...
 axis equal;
 clear k;
 %}
-%% plot grid mesh
+%% plot grid mesh using plot_test_HM2
 % cloud = nodes(:,1:3);
 %{
 plane.index=1:size(nodes(:,1:3),1);
@@ -590,13 +565,15 @@ toc
 % plot_test_HM2(nodes(:,1:3), plane); % display the result after the first segmentation
 
 %% plot point clouds in pcd_viewer
+% %{
+display('======= PCD Viewer =======');
 k = mod(nodes(:,9), g.num_ccs)+1;
 fpcd = figure;
-rgb_colormap = colormap(JET(g.num_ccs));
+rgb_colormap = colormap(jet(g.num_ccs));
 rgb_color = rgb_colormap(k,:);
 close(fpcd);
 points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
-pclviewer(points, '-pc 100');
-% 
-clear k; clear rgb_map;clear rgb_color;
-
+pclviewer(points, '-ps 2 -ax 1');
+clear k; clear rgb_colormap;clear rgb_color;
+clear points;
+% %}
