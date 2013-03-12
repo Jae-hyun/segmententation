@@ -107,7 +107,7 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     end
     g.num_ccs = u.num_sets();
     for i=1:1:g.nnodes
-       if nodes_in(i,1) ~= 0 && labels(i,1) ~= g.label.gound
+       if nodes_in(i,1) ~= 0 && labels(i,1) ~= g.label.ground
            p = u.find(i);
            if u.size(p) >= g.min_size
                nodes_out(i,1) = u.find(i);

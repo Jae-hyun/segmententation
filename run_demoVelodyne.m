@@ -191,8 +191,12 @@ plot_test_HM3(cloud, remainderqueue); % display the small region after segmentat
 base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 % frame = 11041;
-frame = 100;
+frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
+
+img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
+original_img = imread(sprintf('%s/00000%05d.png',img_dir,frame));
+
 % image(img_matrix);
 [g.nscans, g.nranges] = size(img);
 g.yaw_resolution = 360/g.nranges;
@@ -236,13 +240,14 @@ tic
 
 %     myfilter = fspecial('gaussian',[3 3], 0.8);
 %     deci_img = filter2(myfilter, deci_img);
-g.label.gound = 255;
+g.label.ground = 255;
 g.label.objects = 1;
 [g_mag, g_dir, gx, gy] = imgradient(deci_img);
 [g_mag1] = imgradient(g_dir.*180/3.14);
+g_mag_original = g_mag1;
 for s = 1:1:g.nscans
     for r=1:1:g.nranges
-        if g_mag1(s, r) <= 20
+        if g_mag1(s, r) <= 20 && deci_img(s,r) ~= 0
             g_mag1(s, r) = -180;
         else
             g_mag1(s, r) = 0;
@@ -256,20 +261,20 @@ for s = 0:1:g.nscans-1
       idx = s* g.nranges + r;
       nodes(idx+1, 8) = g_dir(s+1,r+1);
       % Label Assign - ground and objects
+      % Direction of Gradient of image for flat surface
       if (g_dir(s+1, r+1).*180/3.14 <= -80) && (g_dir(s+1, r+1).*180/3.14 >= -100)
-%           if g_mag1(s+1,r+1) == -180
-              nodes(idx+1, 10) = g.label.gound;
-              g.num_ground = g.num_ground + 1;
-%           else
-%               nodes(idx+1, 10) = g.label.objects;
-%           end
-              
-%             elseif (temp_grad(s, r) <= -80) && temp_grad(s, r) >= -90
-%                 temp_grad(s, r) = 180;
-         
+          g_mag3(s+1, r+1) = 1; 
       else
           nodes(idx+1, 10) = g.label.objects;
+          g_mag3(s+1, r+1) = 0; 
       end
+        % Magnitude of directional gradient image for flat surface
+%         if g_mag1(s+1,r+1) == -180
+%             nodes(idx+1, 10) = g.label.gound;
+%             g.num_ground = g.num_ground + 1;
+%         else
+%             nodes(idx+1, 10) = g.label.objects;
+%         end
    end
 end
 clear idx;clear s;clear r;
@@ -288,12 +293,15 @@ toc
 %% Clear empty edge and resizing edge
 edges(~any(edges,2),:) = [];
 g.nedges = size(edges,1);
+%% Save temp_edges
+temp_edges = zeros(g.nedges, 4);
+temp_edges = edges(:,1:3);
 %% Compute Edge Weights
 % idx = ~(edges(:,1) == 0 & edges(:,2) == 0 & edges(:,3) == 0);
 disp('======= Compute Edge Weights =======');
 % edge info.
 % 1: a, 2: b, 3: w_dis, 4: w_normal or w_gradient 5:z-axis diff
-g.max_d_weight = 0.1;
+g.max_d_weight = 0.15;
 % g.max_d_weight = 0.05;
 g.w = 0.7;
 g.height_weight = 0.05;
@@ -341,7 +349,7 @@ frame = frame + 1;
 
 %% Segment Graph
 disp('======= Segment Graph =======');
-g.min_size = 5;
+g.min_size = 10;
 % g.num_ccs = 0;
 g.c = 20.0;
 % normals
@@ -355,6 +363,9 @@ g.nnc = 0.5;
 g.method = 3;
 [nodes(:,9), g, sorted_edges, threshold] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
 disp(g.num_ccs);
+%% Original Gray Image plot
+% figure;
+% imshow(original_img);
 %% gradient image plot
 %{
 % figure;
@@ -369,15 +380,63 @@ disp(g.num_ccs);
 %        g_mag1(s,r) = g_mag(s,r)*s/1.5;
 %    end
 % end
-% figure;
-% imagesc(g_mag1);
 % 
 %}
-%%
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if g_mag1(s, r) == -180
+            g_mag2(s, r) = 1;
+        else
+            g_mag2(s, r) = 0;
+        end
+    end
+end
+tic
+threshold = graythresh(g_mag2)
+originalImage = im2bw(g_mag2, threshold);
+%  originalImage = medfilt2(originalImage,[37 37],'symmetric'); 
+ originalImage = bwareaopen(originalImage,10);
+ toc
+%  L = bwlabel(originalImage,8);
+ [L, NUM] = bwlabeln(originalImage,8);
+ NUM
+ 
+ %  originalImage = medfilt2(originalImage,[37 37],'symmetric'); 
+ originalImage1 = bwareaopen(g_mag3,20);
+ toc
+%  L = bwlabel(originalImage,8);
+ [L1, NUM1] = bwlabeln(originalImage1,8);
+ NUM1
+figure;
+subplot(5,1,1);
+imagesc(g_mag1);
+subplot(5,1,2);
+imagesc(originalImage);
+subplot(5,1,3);
+imagesc(L);
+subplot(5,1,4);
+imagesc(g_dir);
+subplot(5,1,5);
+imagesc(L1);
+clear g_mag2;
+%% Plot various image
+%{
 disp('======= Plot image =======');
 tic
-plot_image(deci_img, nodes, g_dir, g, g_mag);
-toc 
+plot_image(deci_img, nodes, g_dir, g, g_mag.*180/3.14);
+toc
+ %}
+%% z axis image plot
+%{
+for s = 0:1:g.nscans-1
+    for r=0:1:g.nranges-1
+        idx = s* g.nranges + r;
+        zaxis_img(s+1,r+1) = nodes(idx+1,3)*-1;
+    end
+end
+figure;
+imagesc(zaxis_img);
+%}
 %%
 % 
 % figure;
@@ -565,7 +624,7 @@ toc
 % plot_test_HM2(nodes(:,1:3), plane); % display the result after the first segmentation
 
 %% plot point clouds in pcd_viewer
-% %{
+%{
 display('======= PCD Viewer =======');
 k = mod(nodes(:,9), g.num_ccs)+1;
 fpcd = figure;
@@ -576,4 +635,202 @@ points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7)
 pclviewer(points, '-ps 2 -ax 1');
 clear k; clear rgb_colormap;clear rgb_color;
 clear points;
+%}
+%% Edge detection
+% %{
+temp_nodes = zeros(g.nnodes, 1);
+% temp_edges = zeros(g.nedges, 1);
+g.min_d_weight = 0.08;
+g.max_d_weight = 0.2;
+g.height_weight = 0.01;
+
+% Edge label Description %
+% 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
+% g.NO_EDGE: no edges
+for i=1:1:g.nedges
+%     if nodes(temp_edges(i,1),4) == 0 || nodes(temp_edges(i,2),4) == 0
+
+    if nodes(temp_edges(i,1),4) == 0 && nodes(temp_edges(i,2),4) ~= 0
+        temp_nodes(temp_edges(i,2),1) = 2;
+    elseif nodes(temp_edges(i,1),4) == 0
+        temp_edges(i,4) = 0;
+    elseif nodes(temp_edges(i,2),4) == 0
+        temp_edges(i,4) = g.NO_EDGE;
+%     elseif nodes(temp_edges(i,2),4) == 0
+%         temp_edges(i,4) = 2;
+    else
+        diff_height = abs(nodes(temp_edges(i,1),3) - nodes(temp_edges(i,2),3));
+        temp_edges(i,3) = abs(nodes(temp_edges(i,1),4) - nodes(temp_edges(i,2),4));
+        min_range = min((nodes(temp_edges(i,1),4)), (nodes(temp_edges(i,2),4)));
+%         if min_range > 10.0
+            weighted_range = g.max_d_weight * min_range;
+            weighted_height = g.height_weight * min_range;
+%             weighted_height = 0;
+%         else
+%             min_range = g.min_d_weight * min_range;
+%         end
+        if temp_edges(i,3) > weighted_range ...
+                || diff_height > weighted_height
+            temp_edges(i,4) = g.NO_EDGE;
+            if temp_edges(i,2) == 0
+                temp_edges(i,4) = 2;
+            end
+        else
+            temp_edges(i,4) = 1;
+        end
+    end
+end
+
+for i=1:1:g.nedges
+        if isnan(temp_edges(i,4)) == 1
+            if nodes(temp_edges(i,1),4) <= nodes(temp_edges(i,2),4)
+                node_num = temp_edges(i,1);
+            else
+                node_num = temp_edges(i,2);
+            end
+            temp_nodes(node_num) = 1;
+        elseif temp_edges(i,4) == 0
+%             temp_nodes(temp_edges(i,1),1) = 1.5;
+            temp_nodes(temp_edges(i,1),1) = 0;
+%         elseif temp_edges(i,4) == 2
+%             temp_nodes(temp_edges(i,1),1) = 2;
+        end
+        %             temp_img(s+1,r+1) = nodes(idx+1,1);
+end
+% %% Edge Image
+temp_img = zeros(g.nscans, g.nranges);
+g.label.ground  = 0;
+for s = 0:1:g.nscans-1
+    for r=0:1:g.nranges-1
+        idx = s* g.nranges + r;
+        temp_img(s+1,r+1) = temp_nodes(idx+1,1);
+%         if nodes(idx+1, 10) == g.label.ground && temp_img(s+1, r+1) == 0
+        if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
+%             temp_img(s+1,r+1) = 0.5;
+             temp_img(s+1,r+1) = 0.0;
+        end
+        %             temp_img(s+1,r+1) = nodes(idx+1,1);
+    end
+end
+% for s = 1:1:g.nscans
+%     for r=1:1:g.nranges
+%         if g_mag1(s, r) <= 20
+%             g_mag1(s, r) = -180;
+%         else
+%             g_mag1(s, r) = 0;
+%         end
+%     end
+% end
+
+figure;
+subplot(2,1,1);
+image(deci_img);
+subplot(2,1,2);
+% colormap(lines);
+imagesc(temp_img);
+
+    temp_img1 = zeros(g.nscans, g.nranges);
+%     cm = colormap(jet(100));
+    ncolor = randperm(100);
+    for s = 0:1:g.nscans-1
+       for r=0:1:g.nranges-1
+           idx = s* g.nranges + r;
+           if nodes(idx+1,9) ~= 0
+            temp_img1(s+1,r+1) = ncolor(mod(nodes(idx+1,9), 100)+1);
+           end
+%             temp_img(s+1,r+1) = nodes(idx+1,1);
+       end
+    end
+    f = figure;
+    fullscreen = get(0,'ScreenSize');
+    % fullscreen = [x_start y_start x_end y_end]
+    set(f, 'Position',[fullscreen(3)/2, 0, fullscreen(3)/2, fullscreen(4)]);
+    subplot(3,1,1);
+%     colormap(jet(100));
+    imagesc(temp_img1);
+    subplot(3,1,2);
+    imagesc(temp_img);
+    for s = 1:1:g.nscans
+       for r=1:1:g.nranges
+           if temp_img(s,r) ~= 0
+            temp_img1(s,r) = 0;
+           end
+%             temp_img(s+1,r+1) = nodes(idx+1,1);
+       end
+    end
+    subplot(3,1,3);
+    imagesc(temp_img1 - temp_img);
+    %%
+     filtered_edge_img = bwareaopen(temp_img,10);
+     edge_n_flat = (filtered_edge_img.*100) + L;
+     BW = edge(originalImage,'prewitt');
+     figure;
+     subplot(3,1,1);
+     imagesc(temp_img);
+     subplot(3,1,2);
+     imagesc(filtered_edge_img);
+     subplot(3,1,3);
+     imagesc(deci_img);
+     %% Boundary extraction of ground image
+     BW1 = bwperim(originalImage, 8);
+     BW2 = BW*2 + temp_img;
+     %{
+     figure;
+     subplot(4,1,1);
+     imagesc(originalImage);
+     subplot(4,1,2);
+     imagesc(BW1);
+     subplot(4,1,3);
+     imagesc(BW2);
+     subplot(4,1,4);
+     imagesc(deci_img);
+     %}
 % %}
+
+%% Plot point clouds in pcd_viewer
+% %{
+display('======= PCD Viewer =======');
+for s = 0:1:g.nscans-1
+   for r=0:1:g.nranges-1
+      idx = s* g.nranges + r;
+      nodes(idx+1, 10) = temp_img(s+1,r+1);
+   end
+end
+k = nodes(:,10)+1;
+fpcd = figure;
+rgb_colormap = colormap(jet(max(k(:))));
+rgb_color = rgb_colormap(k,:);
+close(fpcd);
+points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
+pclviewer(points, '-ps 2 -ax 1');
+clear k; clear rgb_colormap;clear rgb_color;
+clear points;
+% %}
+%% Plot Graph
+%{
+disp('======= plot graph  =======');
+tic
+plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
+toc
+%}
+
+%% V disparity map
+%{
+max_r = round(max(deci_img(:))+0.5);
+v_img = zeros(g.nscans, max_r);
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        range = round(deci_img(s,r)+0.5);
+        if deci_img(s,r) ~= 0
+           v_img(s, range) = v_img(s, range) + 1;
+        end
+    end
+end
+
+figure;
+% subplot(1,2,1);
+imagesc(deci_img);
+% subplot(1,2,2);
+figure;
+imagesc(v_img);
+%}

@@ -1,9 +1,9 @@
 function plot_graph(nodes, edges, g)
-    test_edges = zeros(g.nedges,3);   
+    test_edges = zeros(g.nedges,2);   
     size_test_edges = 1;
     for i=1:1:g.nedges
-        if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1
-            test_edges(size_test_edges,:) = edges(i,:);
+        if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1 && edges(i,3) ~= 2
+            test_edges(size_test_edges,:) = edges(i,1:2);
             size_test_edges = size_test_edges + 1;
         end
     end
@@ -21,6 +21,7 @@ function plot_graph(nodes, edges, g)
         xx1(1:2,i) = [x1 ; x2];
         yy1(1:2,i) = [y1 ; y2];
         zz1(1:2,i) = [z1 ; z2];
+
     end
     %%
         figure;hold on;axis equal;
