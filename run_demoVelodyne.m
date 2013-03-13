@@ -5,6 +5,7 @@
 % clear and close everything
 clear all; close all; clc;
 disp('======= KITTI DevKit Demo =======');
+addpath C:\Users\Administrator\Documents\GitHub\matpcl
 %{
 % options (modify this to select your sequence)
 base_dir  = 'C:\Users\Administrator\Documents\KITTI\2011_09_26_drive_0052';
@@ -194,8 +195,8 @@ nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 
-img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
-original_img = imread(sprintf('%s/00000%05d.png',img_dir,frame));
+% img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
+% original_img = imread(sprintf('%s/00000%05d.png',img_dir,frame));
 
 % image(img_matrix);
 [g.nscans, g.nranges] = size(img);
@@ -653,11 +654,21 @@ g.height_weight = 0.02;
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
 % g.NO_EDGE: no edges
+g.edge_label.ZERO_RANGE = 0;
+g.edge_label.OBJECT_EDGE = 1;
+g.edge_label.FAR_EDGE = 2;
+g.edge_label.NEIBOR_ZERO_RANGE = 3;
+ % Assign start and end of row pixel to to edge;
+g.edge_label.START_N_END_ROW = 4;
+% Assign flat surface directional gradient image
+g.edge_label.FLAT_SURFACE = 5;
+g.edge_label.NON_FLAT_BOUNDARY = 6;
+
 for i=1:1:g.nedges
 %     if nodes(temp_edges(i,1),4) == 0 || nodes(temp_edges(i,2),4) == 0
 
     if nodes(temp_edges(i,1),4) == 0 && nodes(temp_edges(i,2),4) ~= 0
-        temp_nodes(temp_edges(i,2),1) = 2;
+        temp_nodes(temp_edges(i,2),1) = g.edge_label.NEIBOR_ZERO_RANGE;
     elseif nodes(temp_edges(i,1),4) == 0
         temp_edges(i,4) = 0;
     elseif nodes(temp_edges(i,2),4) == 0
@@ -699,13 +710,13 @@ for i=1:1:g.nedges
                 short_node_num = temp_edges(i,2);
                 long_node_num = temp_edges(i,1);
             end
-            temp_nodes(short_node_num) = 1;
-            temp_nodes(long_node_num) = 2;
+            temp_nodes(short_node_num) = g.edge_label.OBJECT_EDGE;
+            temp_nodes(long_node_num) = g.edge_label.FAR_EDGE;
         elseif temp_edges(i,4) == 0
 %             temp_nodes(temp_edges(i,1),1) = 1.5;
-            temp_nodes(temp_edges(i,1),1) = 0;
-%         elseif temp_edges(i,4) == 2
-%             temp_nodes(temp_edges(i,1),1) = 2;
+            temp_nodes(temp_edges(i,1),1) = g.edge_label.ZERO_RANGE;
+        elseif temp_edges(i,4) == 2
+            temp_nodes(temp_edges(i,1),1) = g.edge_label.NEIBOR_ZERO_RANGE;
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
 end
@@ -717,17 +728,15 @@ for s = 0:1:g.nscans-1
         idx = s* g.nranges + r;
         % Assign start and end of row pixel to to edge;
         if (s == 0) || (s == g.nscans-1) % || (r == g.nranges-1)
-           temp_nodes(idx+1, 1) = 3; 
+           temp_nodes(idx+1, 1) = g.edge_label.START_N_END_ROW; 
         end
         temp_img(s+1,r+1) = temp_nodes(idx+1,1);
 %         if nodes(idx+1, 10) == g.label.ground && temp_img(s+1, r+1) == 0
         % Assign flat surface magnitude of directional gradient image
 %         if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
         % Assign flat surface directional gradient image
-        if originalImage1(s+1, r+1) == 1 && temp_img(s+1, r+1) == 0
-            
-            temp_img(s+1,r+1) = 4;
-%              temp_img(s+1,r+1) = 0.0;
+        if originalImage1(s+1, r+1) == 1 && temp_img(s+1, r+1) == g.edge_label.ZERO_RANGE
+            temp_img(s+1,r+1) = g.edge_label.FLAT_SURFACE;
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
@@ -761,6 +770,16 @@ imagesc(temp_img);
 %             temp_img(s+1,r+1) = nodes(idx+1,1);
        end
     end
+
+    for s = 1:1:g.nscans
+       for r=1:1:g.nranges
+           if temp_img(s,r) ~= g.edge_label.ZERO_RANGE
+            temp_img1(s,r) = 0;
+           end
+%             temp_img(s+1,r+1) = nodes(idx+1,1);
+       end
+    end
+    %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
@@ -770,16 +789,9 @@ imagesc(temp_img);
     imagesc(temp_img1);
     subplot(3,1,2);
     imagesc(temp_img);
-    for s = 1:1:g.nscans
-       for r=1:1:g.nranges
-           if temp_img(s,r) ~= 0
-            temp_img1(s,r) = 0;
-           end
-%             temp_img(s+1,r+1) = nodes(idx+1,1);
-       end
-    end
     subplot(3,1,3);
     imagesc(temp_img1 - temp_img);
+    %}
     %%
      filtered_edge_img = bwareaopen(temp_img,10);
      edge_n_flat = (filtered_edge_img.*100) + L;
@@ -826,27 +838,34 @@ imagesc(temp_img);
      BW2 = BW1*2 + temp_img;
      
      BW3 = xor(originalImage1, 1);
-     filtered_BW3 = bwareaopen(BW3,10);
-     BW4 = bwperim(filtered_BW3, 8);
-     figure;
-     subplot(3,1,1);
-     imagesc(BW3);
-     title('none flat surface');
-     subplot(3,1,2);
-     imagesc(filtered_BW3);
-     title('noise rejected non flat surface');
-     subplot(3,1,3);
-     imagesc(BW4);
-     title('Boundart of noise rejected non flat surface');   
-     
+     filtered_BW3 = bwareaopen(BW3,10,8);
+     BW4 = bwperim(filtered_BW3, 4);
+     temp_img2 = zeros(g.nscans, g.nranges);
      for s = 1:1:g.nscans
          for r=1:1:g.nranges
-             if BW4(s,r) == 1
-                 temp_img(s,r) = 6;
+             if filtered_BW3(s,r) == 0
+                 temp_img2(s,r) = 1;
              end
+             if BW4(s,r) == 1
+                 temp_img2(s,r) = 5;
+             end
+             
              %             temp_img(s+1,r+1) = nodes(idx+1,1);
          end
      end
+     figure;
+     subplot(4,1,1);
+     imagesc(BW3);
+     title('none flat surface, BW3');
+     subplot(4,1,2);
+     imagesc(filtered_BW3);
+     title('noise rejected non flat surface, filtered_BW3');
+     subplot(4,1,3);
+     imagesc(BW4);
+     title('Boundary of noise rejected non flat surface, BW4');   
+     subplot(4,1,4);
+     imagesc(temp_img2);
+     title('Flat surface + Boundary of non flat surfance');   
 
 %% Plot point clouds in pcd_viewer
 % %{
@@ -854,7 +873,7 @@ display('======= PCD Viewer =======');
 for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
-      nodes(idx+1, 10) = temp_img(s+1,r+1);
+      nodes(idx+1, 10) = temp_img2(s+1,r+1);
    end
 end
 k = nodes(:,10)+1;
