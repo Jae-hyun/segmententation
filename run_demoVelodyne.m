@@ -410,14 +410,20 @@ originalImage = im2bw(g_mag2, threshold);
 figure;
 subplot(5,1,1);
 imagesc(g_mag1);
+% g_mag1
+title('Original flat surface');
 subplot(5,1,2);
 imagesc(originalImage);
+title('noise rejected flat surface');
 subplot(5,1,3);
 imagesc(L);
+title(' Labeled noise rejected flat surface');
 subplot(5,1,4);
 imagesc(g_dir);
+title('directional gradient image');
 subplot(5,1,5);
 imagesc(L1);
+title(' Ground surface only');
 clear g_mag2;
 %% Plot various image
 %{
@@ -641,8 +647,8 @@ clear points;
 temp_nodes = zeros(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
 g.min_d_weight = 0.08;
-g.max_d_weight = 0.2;
-g.height_weight = 0.01;
+g.max_d_weight = 0.25;
+g.height_weight = 0.02;
 
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
@@ -655,11 +661,13 @@ for i=1:1:g.nedges
     elseif nodes(temp_edges(i,1),4) == 0
         temp_edges(i,4) = 0;
     elseif nodes(temp_edges(i,2),4) == 0
-        temp_edges(i,4) = g.NO_EDGE;
+%         temp_edges(i,4) = g.NO_EDGE;
 %     elseif nodes(temp_edges(i,2),4) == 0
-%         temp_edges(i,4) = 2;
+        temp_edges(i,4) = 2;
     else
+        % Compute height(z-value) difference
         diff_height = abs(nodes(temp_edges(i,1),3) - nodes(temp_edges(i,2),3));
+        % Compute range difference
         temp_edges(i,3) = abs(nodes(temp_edges(i,1),4) - nodes(temp_edges(i,2),4));
         min_range = min((nodes(temp_edges(i,1),4)), (nodes(temp_edges(i,2),4)));
 %         if min_range > 10.0
@@ -670,11 +678,11 @@ for i=1:1:g.nedges
 %             min_range = g.min_d_weight * min_range;
 %         end
         if temp_edges(i,3) > weighted_range ...
-                || diff_height > weighted_height
+%                 || diff_height > weighted_height
             temp_edges(i,4) = g.NO_EDGE;
-            if temp_edges(i,2) == 0
-                temp_edges(i,4) = 2;
-            end
+%             if temp_edges(i,2) == 0
+%                 temp_edges(i,4) = 2;
+%             end
         else
             temp_edges(i,4) = 1;
         end
@@ -683,12 +691,16 @@ end
 
 for i=1:1:g.nedges
         if isnan(temp_edges(i,4)) == 1
+            % Edge assign 1: object edge, 2: unocupanncy edge
             if nodes(temp_edges(i,1),4) <= nodes(temp_edges(i,2),4)
-                node_num = temp_edges(i,1);
+                short_node_num = temp_edges(i,1);
+                long_node_num = temp_edges(i,2);
             else
-                node_num = temp_edges(i,2);
+                short_node_num = temp_edges(i,2);
+                long_node_num = temp_edges(i,1);
             end
-            temp_nodes(node_num) = 1;
+            temp_nodes(short_node_num) = 1;
+            temp_nodes(long_node_num) = 2;
         elseif temp_edges(i,4) == 0
 %             temp_nodes(temp_edges(i,1),1) = 1.5;
             temp_nodes(temp_edges(i,1),1) = 0;
@@ -703,11 +715,19 @@ g.label.ground  = 0;
 for s = 0:1:g.nscans-1
     for r=0:1:g.nranges-1
         idx = s* g.nranges + r;
+        % Assign start and end of row pixel to to edge;
+        if (s == 0) || (s == g.nscans-1) % || (r == g.nranges-1)
+           temp_nodes(idx+1, 1) = 3; 
+        end
         temp_img(s+1,r+1) = temp_nodes(idx+1,1);
 %         if nodes(idx+1, 10) == g.label.ground && temp_img(s+1, r+1) == 0
-        if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
-%             temp_img(s+1,r+1) = 0.5;
-             temp_img(s+1,r+1) = 0.0;
+        % Assign flat surface magnitude of directional gradient image
+%         if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
+        % Assign flat surface directional gradient image
+        if originalImage1(s+1, r+1) == 1 && temp_img(s+1, r+1) == 0
+            
+            temp_img(s+1,r+1) = 4;
+%              temp_img(s+1,r+1) = 0.0;
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
@@ -772,20 +792,61 @@ imagesc(temp_img);
      subplot(3,1,3);
      imagesc(deci_img);
      %% Boundary extraction of ground image
-     BW1 = bwperim(originalImage, 8);
-     BW2 = BW*2 + temp_img;
+ 
      %{
      figure;
      subplot(4,1,1);
-     imagesc(originalImage);
+     imagesc(originalImage1);
+     title('Original flat surface');
      subplot(4,1,2);
+     
      imagesc(BW1);
+     title('boundary of original flat surface');
      subplot(4,1,3);
+     
      imagesc(BW2);
+     title('Original flat surface and it''s boundary');
      subplot(4,1,4);
+     
      imagesc(deci_img);
+     title('Original range image');
+     for s = 1:1:g.nscans
+         for r=1:1:g.nranges
+             if BW1(s,r) ~= 0
+                 temp_img(s,r) = 5;
+             end
+             %             temp_img(s+1,r+1) = nodes(idx+1,1);
+         end
+     end
      %}
 % %}
+
+%% Boundary Extraction of non flat area
+     BW1 = bwperim(originalImage1, 8);
+     BW2 = BW1*2 + temp_img;
+     
+     BW3 = xor(originalImage1, 1);
+     filtered_BW3 = bwareaopen(BW3,10);
+     BW4 = bwperim(filtered_BW3, 8);
+     figure;
+     subplot(3,1,1);
+     imagesc(BW3);
+     title('none flat surface');
+     subplot(3,1,2);
+     imagesc(filtered_BW3);
+     title('noise rejected non flat surface');
+     subplot(3,1,3);
+     imagesc(BW4);
+     title('Boundart of noise rejected non flat surface');   
+     
+     for s = 1:1:g.nscans
+         for r=1:1:g.nranges
+             if BW4(s,r) == 1
+                 temp_img(s,r) = 6;
+             end
+             %             temp_img(s+1,r+1) = nodes(idx+1,1);
+         end
+     end
 
 %% Plot point clouds in pcd_viewer
 % %{
