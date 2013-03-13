@@ -212,10 +212,10 @@ clear img
 disp('======= Down Sampling =======');
 g.deci_s = 1;
 g.deci_r = 1;
-g.img_scan_start = 1;
-g.img_scan_end = 870;
-% g.img_scan_start = 200;
-% g.img_scan_end = 350;
+% g.img_scan_start = 1;
+% g.img_scan_end = 870;
+g.img_scan_start = 200;
+g.img_scan_end = 350;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -792,7 +792,7 @@ imagesc(temp_img);
     subplot(3,1,3);
     imagesc(temp_img1 - temp_img);
     %}
-    %%
+     %% Boundary extraction of ground image
      filtered_edge_img = bwareaopen(temp_img,10);
      edge_n_flat = (filtered_edge_img.*100) + L;
      BW = edge(originalImage,'prewitt');
@@ -803,7 +803,7 @@ imagesc(temp_img);
      imagesc(filtered_edge_img);
      subplot(3,1,3);
      imagesc(deci_img);
-     %% Boundary extraction of ground image
+
  
      %{
      figure;
@@ -836,8 +836,12 @@ imagesc(temp_img);
 %% Boundary Extraction of non flat area
      BW1 = bwperim(originalImage1, 8);
      BW2 = BW1*2 + temp_img;
-     
+     tic
      BW3 = xor(originalImage1, 1);
+     toc
+%      tic
+%      BW5 = ~originalImage1;
+%      toc
      filtered_BW3 = bwareaopen(BW3,10,8);
      BW4 = bwperim(filtered_BW3, 4);
      temp_img2 = zeros(g.nscans, g.nranges);
@@ -913,4 +917,35 @@ imagesc(deci_img);
 % subplot(1,2,2);
 figure;
 imagesc(v_img);
+%}
+
+%% Line Detetion
+% w = [ -1 -1 -1; 2 2 2; -1 -1 -1];
+% g = imfilter(deci_img, w);
+% figure;
+% image(g);
+
+%% Edge gradient compare sobel, prewitt, roberts and original 
+%{
+[max_range  ]= max(max(deci_img));
+bw_image = deci_img./max_range;
+[im1, im1_thresh, im1_gv, im1_gh]= edge(bw_image, 'sobel');
+% im1 = edge(deci_img, 'sobel');
+im1_mag = sqrt(im1_gv.^2+im1_gh.^2);
+% g_dir = atan2(B,A).*180/3.14;
+im1_dir = atan2(im1_gh,im1_gv).*180/3.14;
+figure;
+subplot(5,1,1);
+colormap(JET(100));
+imagesc(g_mag);
+title('own');
+subplot(5,1,2);
+imagesc(im1_mag);
+title('sobel');
+subplot(5,1,3);
+imagesc(g_dir.*-180/3.14);
+title('own');
+subplot(5,1,4);
+imagesc(im1_dir);
+title('sobel');
 %}
