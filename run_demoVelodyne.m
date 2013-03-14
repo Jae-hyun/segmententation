@@ -373,20 +373,21 @@ clear threshold;
 % imshow(original_img);
 %% gradient image plot
 %{
-% figure;
-% subplot(2,1,1);
-% image(abs(gx)*10000);
-% subplot(2,1,2);
-% image(abs(gy)*1000);
+figure;
+subplot(2,1,1);
+image(abs(gx)*1000);
+subplot(2,1,2);
+image(abs(gy)*1000);
 
-% %%
+%%
 % for s = 1:1:g.nscans
 %    for r=1:1:g.nranges
 %        g_mag1(s,r) = g_mag(s,r)*s/1.5;
 %    end
 % end
-% 
+
 %}
+%% gradient and flat surface image plot
 g_mag2 = zeros(g.nscans, g.nranges);
 for s = 1:1:g.nscans
     for r=1:1:g.nranges
@@ -893,27 +894,9 @@ imagesc(temp_img);
      title('Flat surface + Boundary of non flat surfance, temp\_img2');    
      subplot(3,1,3);
      imagesc(deci_img);
-     title('Original Image, temp\_img');
+     title('Original Image, deci\_img');
 
-%% Plot point clouds in pcd_viewer
-% %{
-display('======= PCD Viewer =======');
-for s = 0:1:g.nscans-1
-   for r=0:1:g.nranges-1
-      idx = s* g.nranges + r;
-      nodes(idx+1, 10) = temp_img2(s+1,r+1);
-   end
-end
-k = nodes(:,10)+1;
-fpcd = figure;
-rgb_colormap = colormap(jet(max(k(:))));
-rgb_color = rgb_colormap(k,:);
-close(fpcd);
-points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
-pclviewer(points, '-ps 2 -ax 1');
-clear k; clear rgb_colormap;clear rgb_color;
-clear points;
-% %}
+
 %% Plot Graph
 %{
 disp('======= plot graph  =======');
@@ -973,3 +956,49 @@ subplot(5,1,4);
 imagesc(im1_dir);
 title('sobel');
 %}
+
+%% gradient edge plot( Original img, DoG img, MDoG img);
+figure;
+subplot(3,1,1);
+imagesc(deci_img);
+title('Original Image, deci\_img');
+subplot(3,1,2);
+imagesc(g_dir);
+title('Directional Gradient Image, g\_dir');
+subplot(3,1,3);
+imagesc(g_mag_original);
+title('Magnitude of Directional Gradient Image, g\_mag\_original');
+
+%% GoD Computation
+GoD_x = zeros(g.nscans, g.nranges);
+GoD_y = zeros(g.nscans, g.nranges);
+     for s = 1:1:g.nscans
+         for r=1:1:g.nranges
+             
+             %             temp_img(s+1,r+1) = nodes(idx+1,1);
+         end
+     end
+%%
+%% Plot point clouds in pcd_viewer
+% %{
+display('======= PCD Viewer =======');
+for s = 0:1:g.nscans-1
+   for r=0:1:g.nranges-1
+      idx = s* g.nranges + r;
+      % flat & objects & boundary of nonflat area
+%       nodes(idx+1, 10) = temp_img2(s+1,r+1);
+      % magnitude of directional gradient
+      nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
+   end
+end
+k = nodes(:,10)+1;
+fpcd = figure;
+rgb_colormap = colormap(jet(max(k(:))));
+rgb_color = rgb_colormap(k,:);
+close(fpcd);
+points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
+pclviewer(points, '-ps 2 -ax 1');
+clear k; clear rgb_colormap;clear rgb_color;
+clear points;
+% %}
+
