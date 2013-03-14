@@ -215,7 +215,7 @@ g.deci_r = 1;
 % g.img_scan_start = 1;
 % g.img_scan_end = 870;
 g.img_scan_start = 200;
-g.img_scan_end = 350;
+g.img_scan_end = 500;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -246,6 +246,7 @@ g.label.objects = 1;
 [g_mag, g_dir, gx, gy] = imgradient(deci_img);
 [g_mag1] = imgradient(g_dir.*180/3.14);
 g_mag_original = g_mag1;
+
 for s = 1:1:g.nscans
     for r=1:1:g.nranges
         if g_mag1(s, r) <= 20 && deci_img(s,r) ~= 0
@@ -257,6 +258,7 @@ for s = 1:1:g.nscans
 end
 g.num_ground = 0;
 toc
+g_mag3 = zeros(g.nscans, g.nranges);
 for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
@@ -364,6 +366,8 @@ g.nnc = 0.5;
 g.method = 3;
 [nodes(:,9), g, sorted_edges, threshold] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
 disp(g.num_ccs);
+clear sorted_edges;
+clear threshold;
 %% Original Gray Image plot
 % figure;
 % imshow(original_img);
@@ -383,6 +387,7 @@ disp(g.num_ccs);
 % end
 % 
 %}
+g_mag2 = zeros(g.nscans, g.nranges);
 for s = 1:1:g.nscans
     for r=1:1:g.nranges
         if g_mag1(s, r) == -180
@@ -393,7 +398,7 @@ for s = 1:1:g.nscans
     end
 end
 tic
-threshold = graythresh(g_mag2)
+threshold = graythresh(g_mag2);
 originalImage = im2bw(g_mag2, threshold);
 %  originalImage = medfilt2(originalImage,[37 37],'symmetric'); 
  originalImage = bwareaopen(originalImage,10);
@@ -792,7 +797,8 @@ imagesc(temp_img);
     subplot(3,1,3);
     imagesc(temp_img1 - temp_img);
     %}
-     %% Boundary extraction of ground image
+     %% Boundary extraction of ground image using matlab edge func
+     %{
      filtered_edge_img = bwareaopen(temp_img,10);
      edge_n_flat = (filtered_edge_img.*100) + L;
      BW = edge(originalImage,'prewitt');
@@ -803,6 +809,7 @@ imagesc(temp_img);
      imagesc(filtered_edge_img);
      subplot(3,1,3);
      imagesc(deci_img);
+     %}
 
  
      %{
@@ -845,6 +852,7 @@ imagesc(temp_img);
      filtered_BW3 = bwareaopen(BW3,10,8);
      BW4 = bwperim(filtered_BW3, 4);
      temp_img2 = zeros(g.nscans, g.nranges);
+     tic
      for s = 1:1:g.nscans
          for r=1:1:g.nranges
              if filtered_BW3(s,r) == 0
@@ -857,6 +865,9 @@ imagesc(temp_img);
              %             temp_img(s+1,r+1) = nodes(idx+1,1);
          end
      end
+     toc
+     % flat surface and it's boundary plot
+%      %{
      figure;
      subplot(4,1,1);
      imagesc(BW3);
@@ -870,6 +881,19 @@ imagesc(temp_img);
      subplot(4,1,4);
      imagesc(temp_img2);
      title('Flat surface + Boundary of non flat surfance');   
+%      %}
+
+     % Compare range based edge detection and boundary of flat surface detection
+     figure;
+     subplot(3,1,1);
+     imagesc(temp_img);
+     title('Edge labeling image, temp\_img');
+     subplot(3,1,2);
+     imagesc(temp_img2);
+     title('Flat surface + Boundary of non flat surfance, temp\_img2');    
+     subplot(3,1,3);
+     imagesc(deci_img);
+     title('Original Image, temp\_img');
 
 %% Plot point clouds in pcd_viewer
 % %{
