@@ -18,6 +18,7 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
     subplot(5,1,1);
         colormap(jet(100));
     imagesc(deci_img);
+    title('Original Range Image');
 
 %     axis image;
     grid on;
@@ -35,6 +36,7 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
 % figure;
         colormap(jet(100));
     image(temp_img);
+    title('Graph Based Segmentation Result Extracting Ground');
 
 %     axis image;
     grid on;   
@@ -60,11 +62,13 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
 %     image(temp_img1);
     % Magnitude of Gradient Image
     image(mog_img);
+    title('MoD Image');
     
     subplot(5,1,4);
 %         colormap bone;
 %     imagesc(abs(grad_img.*180/3.14));
     imagesc(grad_img.*180/3.14);
+    title('DoG Image');
 %     temp_grad = abs(grad_img.*180/3.14);
     temp_grad = grad_img.*180/3.14;
 %     myfilter = fspecial('gaussian',[3 3], 0.5);
@@ -85,18 +89,22 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
 %     figure;
     subplot(5,1,5);
     imagesc(temp_grad);
+    title('Ground Image using DoG');
     
     f1 = figure;
     set(f1, 'Position',[fullscreen(1), 0, fullscreen(3)/2, fullscreen(4)]);
     subplot(5,1,1);
     image(deci_img);
+    title('Original Range Image');
     subplot(5,1,2);
     image(temp_img);
+    title('Graph Based Segmentation Result Extracting Ground');
 
 %     figure;
     [t_m, t_d] = imgradient(grad_img.*180/3.14);
     subplot(5,1,3);
     image(t_m);
+    title('MDoG Image');
 %     imagesc(t_m);
 %     tic
 %     [m_i, d_i] = imgradient(temp_img1);
@@ -126,8 +134,10 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
 %     figure;
     subplot(5,1,4);
     imagesc(temp_grad);
+    title('Ground Image using DoG');
     subplot(5,1,5);
     imagesc(temp_grad1);
+    title('Ground Image using MDoG');
 %     figure;
 %     image(mog_img.*100);
 %     [t_m, t_d] = imgradient(t_m);

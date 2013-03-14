@@ -190,9 +190,10 @@ plot_test_HM3(cloud, remainderqueue); % display the small region after segmentat
 % -1.9367; -1.57397; -1.30476; -0.871566; -0.57881; -0.180617; 0.088762; 0.451829; 0.80315; 1.20124; 1.49388; 1.83324; 2.20757; 2.54663; 2.87384; 3.23588; 3.53933; 3.93585; 4.21552; 4.5881; 4.91379; 5.25078; 5.6106; 5.9584; 6.32889; 6.67575; 6.99904; 7.28731; 7.67877; 8.05803; 8.31047; 8.71141; 9.02602; 9.57351; 10.0625; 10.4707; 10.9569; 11.599; 12.115; 12.5621; 13.041; 13.4848; 14.0483; 14.5981; 15.1887; 15.6567; 16.1766; 16.554; 17.1868; 17.7304; 18.3234; 18.7971; 19.3202; 19.7364; 20.2226; 20.7877; 21.3181; 21.9355; 22.4376; 22.8566; 23.3224; 23.971; 24.5066; 24.9992
 %% 
 base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
+% base_dir  = 'C:\Users\Administrator\Downloads\scenario2';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 % frame = 11041;
-frame = 0;
+frame = 90;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 
 % img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
@@ -426,19 +427,19 @@ subplot(5,1,3);
 imagesc(L);
 title(' Labeled noise rejected flat surface');
 subplot(5,1,4);
-imagesc(g_dir);
+imagesc(g_dir.*180/3.14);
 title('directional gradient image');
 subplot(5,1,5);
 imagesc(L1);
 title(' Ground surface only');
 clear g_mag2;
 %% Plot various image
-%{
+% %{
 disp('======= Plot image =======');
 tic
 plot_image(deci_img, nodes, g_dir, g, g_mag.*180/3.14);
 toc
- %}
+%  %}
 %% z axis image plot
 %{
 for s = 0:1:g.nscans-1
@@ -637,7 +638,7 @@ toc
 % plot_test_HM2(nodes(:,1:3), plane); % display the result after the first segmentation
 
 %% plot point clouds in pcd_viewer
-%{
+% %{
 display('======= PCD Viewer =======');
 k = mod(nodes(:,9), g.num_ccs)+1;
 fpcd = figure;
@@ -648,13 +649,13 @@ points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7)
 pclviewer(points, '-ps 2 -ax 1');
 clear k; clear rgb_colormap;clear rgb_color;
 clear points;
-%}
+% %}
 %% Edge detection
 % %{
 temp_nodes = zeros(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
 g.min_d_weight = 0.08;
-g.max_d_weight = 0.25;
+g.max_d_weight = 0.20;
 g.height_weight = 0.02;
 
 % Edge label Description %
@@ -695,7 +696,7 @@ for i=1:1:g.nedges
 %             min_range = g.min_d_weight * min_range;
 %         end
         if temp_edges(i,3) > weighted_range ...
-%                 || diff_height > weighted_height
+                || diff_height > weighted_height
             temp_edges(i,4) = g.NO_EDGE;
 %             if temp_edges(i,2) == 0
 %                 temp_edges(i,4) = 2;
@@ -760,10 +761,11 @@ end
 figure;
 subplot(2,1,1);
 image(deci_img);
+title('Original Img, deci\_img');
 subplot(2,1,2);
 % colormap(lines);
 imagesc(temp_img);
-
+title('Edge Img and Ground Plane, temp\_img');
     temp_img1 = zeros(g.nscans, g.nranges);
 %     cm = colormap(jet(100));
     ncolor = randperm(100);
@@ -798,6 +800,33 @@ imagesc(temp_img);
     subplot(3,1,3);
     imagesc(temp_img1 - temp_img);
     %}
+    
+%% New Segment Graph
+%{
+g.c = 10.0;
+disp('===== Segment Graph =====');
+tic
+[nodes(:,9), g] = segment_graph(nodes(:,4), temp_edges, g, nodes(:,10));
+toc
+%%
+disp('======= Plot image =======');
+tic
+plot_image(deci_img, nodes, g_dir, g, g_mag.*180/3.14);
+toc
+%% plot point clouds in pcd_viewer
+% %{
+display('======= PCD Viewer =======');
+k = mod(nodes(:,9), g.num_ccs)+1;
+fpcd = figure;
+rgb_colormap = colormap(jet(g.num_ccs));
+rgb_color = rgb_colormap(k,:);
+close(fpcd);
+points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
+pclviewer(points, '-ps 2 -ax 1');
+clear k; clear rgb_colormap;clear rgb_color;
+clear points;
+% %}
+%}
      %% Boundary extraction of ground image using matlab edge func
      %{
      filtered_edge_img = bwareaopen(temp_img,10);
@@ -958,6 +987,7 @@ title('sobel');
 %}
 
 %% gradient edge plot( Original img, DoG img, MDoG img);
+%{
 figure;
 subplot(3,1,1);
 imagesc(deci_img);
@@ -968,17 +998,117 @@ title('Directional Gradient Image, g\_dir');
 subplot(3,1,3);
 imagesc(g_mag_original);
 title('Magnitude of Directional Gradient Image, g\_mag\_original');
+%}
 
-%% GoD Computation
+%% Gx, Gy, MGoD, DGoD Computation
+%{
 GoD_x = zeros(g.nscans, g.nranges);
 GoD_y = zeros(g.nscans, g.nranges);
-     for s = 1:1:g.nscans
-         for r=1:1:g.nranges
-             
-             %             temp_img(s+1,r+1) = nodes(idx+1,1);
-         end
-     end
-%%
+%%% Computation of gx
+% Computes gx of first row and end row
+tic
+[gx gy] = gradient(deci_img);
+toc
+pause(0.5);
+tic
+for s = 1:1:g.nscans
+    GoD_x(s,1) = deci_img(s,2) - deci_img(s,1);
+    GoD_x(s,g.nranges) = deci_img(s,g.nranges) - deci_img(s,g.nranges-1);
+end
+% Computes gx of 2nd row to (end-1) row
+for s = 1:1:g.nscans
+    for r=2:1:g.nranges-1
+        GoD_x(s,r) = (deci_img(s,r+1) - deci_img(s,r-1));
+    end
+end
+% Computes gy of first colum and end colum
+for r = 1:1:g.nranges
+    GoD_y(1,r) = deci_img(2,r) - deci_img(1,r);
+    GoD_y(g.nscans,r) = deci_img(g.nscans, r) - deci_img(g.nscans-1,r);
+end
+% Computes gy of 2nd colum to (end-1) colum
+for s = 2:1:g.nscans-1
+    for r=1:1:g.nranges
+        GoD_y(s,r) = (deci_img(s+1,r) - deci_img(s-1,r));
+    end
+end
+toc
+% plot gx, gy, DoG_x, DoG_y
+%{
+figure;
+subplot(4,1,1);
+imagesc(gx);
+title('matlab ver. gx');
+subplot(4,1,2);
+imagesc(GoD_x);
+title('own ver. gx');
+subplot(4,1,3);
+imagesc(gy);
+title('matlab ver. gy');
+subplot(4,1,4);
+imagesc(GoD_y);
+title('own ver. gy');
+%}
+
+
+MGoD = sqrt(GoD_x.^2+GoD_y.^2);
+DGoD = atan2(GoD_y,GoD_x).*180/3.14;
+figure;
+subplot(4,1,1);
+imagesc(g_mag);
+title('matlab ver. g\_mag');
+subplot(4,1,2);
+imagesc(MGoD);
+title('own ver. MGoD');
+subplot(4,1,3);
+imagesc(g_dir.*180/3.14);
+title('matlab ver. g\_dir');
+subplot(4,1,4);
+imagesc(DGoD);
+title('own ver. DGoD');
+
+%% DGoD Computation
+for s = 1:1:g.nscans
+    for r=2:1:g.nranges-1
+        GoD_x(s,r) = (deci_img(s,r+1) - deci_img(s,r-1));
+    end
+end
+%}
+
+%% DGoD Computation
+%{
+DGoD = zeros(g.nscans, g.nranges);
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if gx(s,r) ~= 0 && gy(s,r) == 0
+%            if gx(s,r) > 0
+%                DGoD(s,r) = pi;
+%            else
+%                DGoD(s,r) = -pi;
+%            end
+        elseif gy(s,r) == 0 && gx(s,r) == 0
+            DGoD(s,r) = 0;
+        else
+            DGoD(s,r) = atan2(gy(s,r), gx(s,r))*-1;
+        end
+        
+    end
+end
+
+figure;
+subplot(4,1,1);
+imagesc(gx);
+title('matlab ver. g\_mag');
+subplot(4,1,2);
+imagesc(gy);
+title('own ver. MGoD');
+subplot(4,1,3);
+imagesc(g_dir.*180/3.14);
+title('matlab ver. g\_dir');
+subplot(4,1,4);
+imagesc(DGoD.*180/3.14);
+title('own ver. DGoD');
+%}
 %% Plot point clouds in pcd_viewer
 % %{
 display('======= PCD Viewer =======');
@@ -986,9 +1116,9 @@ for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
       % flat & objects & boundary of nonflat area
-%       nodes(idx+1, 10) = temp_img2(s+1,r+1);
+      nodes(idx+1, 10) = temp_img2(s+1,r+1);
       % magnitude of directional gradient
-      nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
+%       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
    end
 end
 k = nodes(:,10)+1;
@@ -1002,3 +1132,150 @@ clear k; clear rgb_colormap;clear rgb_color;
 clear points;
 % %}
 
+
+%% Plot continous Images
+%{
+base_dir  = 'C:\Users\Administrator\Downloads\scenario2';
+nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
+% frame = 11041;
+frame = 0;
+f = figure;
+set(f, 'keypressfcn', @stop_img);
+for i=55:1:200
+   img = imread(sprintf('%s/scan%05d.png',base_dir,i));
+   fprintf('%i ',i);
+
+   imagesc(img);
+   pause(0.5);
+end
+%}
+
+%% Normailized Gx, Gy Computation
+%{
+GoD_x = zeros(g.nscans, g.nranges);
+GoD_y = zeros(g.nscans, g.nranges);
+%%% Computation of gx
+% Computes gx of first row and end row
+tic
+for s = 1:1:g.nscans
+    GoD_x(s,1) = (deci_img(s,2) - deci_img(s,1))/max(deci_img(s,2),deci_img(s,1));
+    GoD_x(s,g.nranges) = (deci_img(s,g.nranges) - deci_img(s,g.nranges-1))/max(deci_img(s,g.nranges),deci_img(s,g.nranges-1));
+end
+% Computes gx of 2nd row to (end-1) row
+for s = 1:1:g.nscans
+    for r=2:1:g.nranges-1
+        GoD_x(s,r) = (deci_img(s,r+1) - deci_img(s,r-1))/max(deci_img(s,r+1),deci_img(s,r-1));
+    end
+end
+% Computes gy of first colum and end colum
+for r = 1:1:g.nranges
+    GoD_y(1,r) = (deci_img(2,r) - deci_img(1,r))/max(deci_img(2,r), deci_img(1,r));
+    GoD_y(g.nscans,r) = (deci_img(g.nscans, r) - deci_img(g.nscans-1,r))/max(deci_img(g.nscans, r), deci_img(g.nscans-1,r));
+end
+% Computes gy of 2nd colum to (end-1) colum
+for s = 2:1:g.nscans-1
+    for r=1:1:g.nranges
+        GoD_y(s,r) = (deci_img(s+1,r) - deci_img(s-1,r))/max(deci_img(s+1,r), deci_img(s-1,r));
+    end
+end
+toc
+% plot gx, gy, DoG_x, DoG_y
+% %{
+figure;
+subplot(4,1,1);
+imshow(gx);
+title('matlab ver. gx');
+subplot(4,1,2);
+imshow(GoD_x);
+title('own ver. gx');
+subplot(4,1,3);
+imagesc(gy);
+title('matlab ver. gy');
+subplot(4,1,4);
+imagesc(GoD_y);
+title('own ver. gy');
+MGoD = sqrt(GoD_x.^2+GoD_y.^2);
+DGoD = atan2(GoD_y,GoD_x).*180/3.14;
+figure;
+subplot(4,1,1);
+imagesc(g_mag);
+title('matlab ver. g\_mag');
+subplot(4,1,2);
+imagesc(MGoD);
+title('own ver. MGoD');
+subplot(4,1,3);
+imagesc(g_dir.*180/3.14);
+title('matlab ver. g\_dir');
+subplot(4,1,4);
+imagesc(DGoD);
+title('own ver. DGoD');
+%}
+
+%% Normailized Gx, Gy Ratio Computation
+%{
+GoD_x = zeros(g.nscans, g.nranges);
+GoD_y = zeros(g.nscans, g.nranges);
+%%% Computation of gx
+% Computes gx of first row and end row
+tic
+for s = 1:1:g.nscans 
+    GoD_x(s,1) = abs(deci_img(s,2) - deci_img(s,1));%/max(deci_img(s,2),deci_img(s,1));
+    GoD_x(s,g.nranges) = abs(deci_img(s,g.nranges) - deci_img(s,g.nranges-1));%/max(deci_img(s,g.nranges),deci_img(s,g.nranges-1));
+    if GoD_x(s, 1) > 1
+        GoD_x(s,1) = 1;
+    end
+    if GoD_x(s,g.nranges) > 1
+        GoD_x(s,g.nranges) = 1;
+    end
+end
+% Computes gx of 2nd row to (end-1) row
+for s = 1:1:g.nscans
+    for r=2:1:g.nranges-1
+        if deci_img(s,r+1) ~= 0 && deci_img(s,r) ~= 0 && deci_img(s,r-1)~=0
+            max_value = max(deci_img(s,r+1),deci_img(s,r-1));
+            nx2 = deci_img(s,r+1)/max_value;
+            nx1 = deci_img(s,r)/max_value;
+            nx0 = deci_img(s,r-1)/max_value;
+            gx1 = nx2 - nx1+0.000005;
+            gx2 = nx0 - nx1+0.000005;
+            GoD_x(s,r) = gx1/gx2;
+            if GoD_x(s, r) > 1
+                GoD_x(s,r) = 1;
+            end
+            if GoD_x(s, r) < 1
+                GoD_x(s,r) = -1;
+            end
+%             if GoD_x(s, r) < 0.005
+%                 GoD_x(s,r) = 0;
+%             end
+        end
+    end
+end
+% Computes gy of first colum and end colum
+% for r = 1:1:g.nranges
+%     GoD_y(1,r) = (deci_img(2,r) - deci_img(1,r))/max(deci_img(2,r), deci_img(1,r));
+%     GoD_y(g.nscans,r) = (deci_img(g.nscans, r) - deci_img(g.nscans-1,r))/max(deci_img(g.nscans, r), deci_img(g.nscans-1,r));
+% end
+% % Computes gy of 2nd colum to (end-1) colum
+% for s = 2:1:g.nscans-1
+%     for r=1:1:g.nranges
+%         GoD_y(s,r) = (deci_img(s+1,r) - deci_img(s-1,r))/max(deci_img(s+1,r), deci_img(s-1,r));
+%     end
+% end
+toc
+% plot gx, gy, DoG_x, DoG_y
+% %{
+figure;
+subplot(4,1,1);
+imagesc(gx);
+title('matlab ver. gx');
+subplot(4,1,2);
+imagesc(GoD_x);
+title('own ver. gx');
+subplot(4,1,3);
+imagesc(deci_img);
+title('matlab ver. gy');
+subplot(4,1,4);
+imagesc(g_dir);
+title('own ver. gy');
+%}

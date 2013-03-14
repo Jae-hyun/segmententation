@@ -2,7 +2,7 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
     tic
     sort_edges = zeros(g.nedges,6);
 %     if g.method == 6
-        sort_edges = sortrows(edges, 3);
+    sort_edges = sortrows(edges, 3);
 %         sort_edges = edges;
 %     else
 %         sort_edges = sortrows(edges, g.method);
@@ -23,7 +23,7 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
 %     for i=g.nedges:-1:1
         a = u.find(sort_edges(i,1));
         b = u.find(sort_edges(i,2));
-        if(sort_edges(i,4) ~= g.NO_EDGE || sort_edges(i,4) ~= 0 && isnan(edges(i,3)) ~= 1)
+        if(sort_edges(i,4) ~= g.NO_EDGE || sort_edges(i,4) ~= 0 && isnan(edges(i,4)) ~= 1)
             if (a ~= b)
                 if g.method == 3
                     if(sort_edges(i,3) < threshold(a,1) && sort_edges(i,3) < threshold(b,1))
@@ -106,6 +106,7 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
         sort_edges(i,6) = u.find(sort_edges(i,1));
     end
     g.num_ccs = u.num_sets();
+% %{    
     for i=1:1:g.nnodes
        if nodes_in(i,1) ~= 0 && labels(i,1) ~= g.label.ground
            p = u.find(i);
@@ -117,5 +118,6 @@ function [nodes_out, g, sort_edges, threshold] = segment_graph(nodes_in, edges, 
 %            g.num_ccs = g.num_ccs - 1;
        end
     end
+%     %}
         
 end
