@@ -2,7 +2,7 @@ function plot_graph(nodes, edges, g)
     test_edges = zeros(g.nedges,2);   
     size_test_edges = 1;
     for i=1:1:g.nedges
-        if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1 && edges(i,3) ~= 2
+        if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1 && edges(i,3) ~= 2 && edges(i,3) ~= 0
             test_edges(size_test_edges,:) = edges(i,1:2);
             size_test_edges = size_test_edges + 1;
         end

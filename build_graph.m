@@ -10,6 +10,7 @@ function [normals, edges] = build_graph(nodes, labels, g)
             idx = s* nranges + r;
             % Edge Assign
 %             if labels(idx+1) ~= g.label.gound
+                % x + 1
                 if r < nranges -1
                     idy = s * nranges + (r+1);
                     if labels(idy+1) ~= g.label.ground
@@ -18,6 +19,7 @@ function [normals, edges] = build_graph(nodes, labels, g)
                         num = num + 1;
                     end
                 end
+                % y + 1
                 if s < nscans -1
                     idy = (s+1) * nranges + (r);
                     if labels(idy+1) ~= g.label.ground
@@ -26,6 +28,7 @@ function [normals, edges] = build_graph(nodes, labels, g)
                         num = num + 1;
                     end
                 end
+                % x+1, y+1
                 if s < nscans -1 && r < nranges -1
                     idy = (s+1) * nranges + (r+1);
                     if labels(idy+1) ~= g.label.ground
@@ -34,6 +37,7 @@ function [normals, edges] = build_graph(nodes, labels, g)
                         num = num + 1;
                     end
                 end
+                % x+1, y-1
                 if s > 0 && r < nranges -1
                     if labels(idy+1) ~= g.label.ground
                         idy = (s-1) * nranges + (r+1);

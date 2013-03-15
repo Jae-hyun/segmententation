@@ -215,8 +215,8 @@ g.deci_s = 1;
 g.deci_r = 1;
 % g.img_scan_start = 1;
 % g.img_scan_end = 870;
-g.img_scan_start = 200;
-g.img_scan_end = 500;
+g.img_scan_start = 300;
+g.img_scan_end = 400;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -654,9 +654,7 @@ clear points;
 % %{
 temp_nodes = zeros(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
-g.min_d_weight = 0.08;
-g.max_d_weight = 0.20;
-g.height_weight = 0.02;
+
 
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
@@ -670,17 +668,18 @@ g.edge_label.START_N_END_ROW = 4;
 % Assign flat surface directional gradient image
 g.edge_label.FLAT_SURFACE = 5;
 g.edge_label.NON_FLAT_BOUNDARY = 6;
-
+g.min_d_weight = 0.08;
+g.raster_weight = 0.005;
+g.radial_weight = 0.25;
+g.height_weight = 0.02;
+% Build Graph with Range Weight
 for i=1:1:g.nedges
-%     if nodes(temp_edges(i,1),4) == 0 || nodes(temp_edges(i,2),4) == 0
 
     if nodes(temp_edges(i,1),4) == 0 && nodes(temp_edges(i,2),4) ~= 0
         temp_nodes(temp_edges(i,2),1) = g.edge_label.NEIBOR_ZERO_RANGE;
-    elseif nodes(temp_edges(i,1),4) == 0
-        temp_edges(i,4) = 0;
-    elseif nodes(temp_edges(i,2),4) == 0
-%         temp_edges(i,4) = g.NO_EDGE;
-%     elseif nodes(temp_edges(i,2),4) == 0
+    elseif nodes(temp_edges(i,1),4) == 0 % Zero Range node
+        temp_edges(i,4) = g.NO_EDGE;
+    elseif nodes(temp_edges(i,2),4) == 0 %neighbor edge zero range node
         temp_edges(i,4) = 2;
     else
         % Compute height(z-value) difference
@@ -689,14 +688,20 @@ for i=1:1:g.nedges
         temp_edges(i,3) = abs(nodes(temp_edges(i,1),4) - nodes(temp_edges(i,2),4));
         min_range = min((nodes(temp_edges(i,1),4)), (nodes(temp_edges(i,2),4)));
 %         if min_range > 10.0
-            weighted_range = g.max_d_weight * min_range;
-            weighted_height = g.height_weight * min_range;
+        if (temp_edges(i,2) - temp_edges(i,1)) == 1
+            weighted_range = g.raster_weight * min_range;
+        elseif (temp_edges(i,1) + g.nranges == temp_edges(i,2))
+            weighted_range = (g.raster_weight/g.radial_weight) * min_range;
+        else
+            weighted_range = g.radial_weight * min_range;
+        end
+        weighted_height = g.height_weight * min_range;
 %             weighted_height = 0;
 %         else
 %             min_range = g.min_d_weight * min_range;
 %         end
         if temp_edges(i,3) > weighted_range ...
-                || diff_height > weighted_height
+%                 || diff_height > weighted_height
             temp_edges(i,4) = g.NO_EDGE;
 %             if temp_edges(i,2) == 0
 %                 temp_edges(i,4) = 2;
@@ -748,6 +753,7 @@ for s = 0:1:g.nscans-1
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
 end
+%{
 % for s = 1:1:g.nscans
 %     for r=1:1:g.nranges
 %         if g_mag1(s, r) <= 20
@@ -758,48 +764,49 @@ end
 %     end
 % end
 
-figure;
-subplot(2,1,1);
-image(deci_img);
-title('Original Img, deci\_img');
-subplot(2,1,2);
-% colormap(lines);
-imagesc(temp_img);
+% figure;
+% subplot(2,1,1);
+% image(deci_img);
+% title('Original Img, deci\_img');
+% subplot(2,1,2);
+% % colormap(lines);
+% imagesc(temp_img);
 title('Edge Img and Ground Plane, temp\_img');
-    temp_img1 = zeros(g.nscans, g.nranges);
+%}
+temp_img1 = zeros(g.nscans, g.nranges);
 %     cm = colormap(jet(100));
-    ncolor = randperm(100);
-    for s = 0:1:g.nscans-1
-       for r=0:1:g.nranges-1
-           idx = s* g.nranges + r;
-           if nodes(idx+1,9) ~= 0
+ncolor = randperm(100);
+for s = 0:1:g.nscans-1
+    for r=0:1:g.nranges-1
+        idx = s* g.nranges + r;
+        if nodes(idx+1,9) ~= 0
             temp_img1(s+1,r+1) = ncolor(mod(nodes(idx+1,9), 100)+1);
-           end
-%             temp_img(s+1,r+1) = nodes(idx+1,1);
-       end
+        end
+        %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
+end
 
-    for s = 1:1:g.nscans
-       for r=1:1:g.nranges
-           if temp_img(s,r) ~= g.edge_label.ZERO_RANGE
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if temp_img(s,r) ~= g.edge_label.ZERO_RANGE
             temp_img1(s,r) = 0;
-           end
-%             temp_img(s+1,r+1) = nodes(idx+1,1);
-       end
+        end
+        %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
-    %{
+end
+%     %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
-    set(f, 'Position',[fullscreen(3)/2, 0, fullscreen(3)/2, fullscreen(4)]);
+    set(f, 'Position',[0, 0, fullscreen(3)/2, fullscreen(4)]);
     subplot(3,1,1);
 %     colormap(jet(100));
     imagesc(temp_img1);
     subplot(3,1,2);
     imagesc(temp_img);
     subplot(3,1,3);
-    imagesc(temp_img1 - temp_img);
-    %}
+    imagesc(deci_img);
+%     %}
     
 %% New Segment Graph
 %{
@@ -883,6 +890,7 @@ clear points;
      BW4 = bwperim(filtered_BW3, 4);
      temp_img2 = zeros(g.nscans, g.nranges);
      tic
+     % non-flat ground boundary
      for s = 1:1:g.nscans
          for r=1:1:g.nranges
              if filtered_BW3(s,r) == 0
@@ -897,7 +905,7 @@ clear points;
      end
      toc
      % flat surface and it's boundary plot
-%      %{
+     %{
      figure;
      subplot(4,1,1);
      imagesc(BW3);
@@ -911,7 +919,7 @@ clear points;
      subplot(4,1,4);
      imagesc(temp_img2);
      title('Flat surface + Boundary of non flat surfance');   
-%      %}
+     %}
 
      % Compare range based edge detection and boundary of flat surface detection
      figure;
@@ -927,12 +935,12 @@ clear points;
 
 
 %% Plot Graph
-%{
+% %{
 disp('======= plot graph  =======');
 tic
 plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
 toc
-%}
+% %}
 
 %% V disparity map
 %{
@@ -1116,7 +1124,7 @@ for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
       % flat & objects & boundary of nonflat area
-      nodes(idx+1, 10) = temp_img2(s+1,r+1);
+      nodes(idx+1, 10) = temp_img(s+1,r+1);
       % magnitude of directional gradient
 %       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
    end
@@ -1279,3 +1287,32 @@ subplot(4,1,4);
 imagesc(g_dir);
 title('own ver. gy');
 %}
+
+%% Height Gradient Image Computation
+DGoH = zeros(g.nscans, g.nranges);
+MGoH = zeros(g.nscans, g.nranges);
+height_img = zeros(g.nscans, g.nranges);
+display('======= PCD Viewer =======');
+for s = 0:1:g.nscans-1
+   for r=0:1:g.nranges-1
+      idx = s* g.nranges + r;
+      % flat & objects & boundary of nonflat area
+      height_img(s+1, r+1) = nodes(idx+1, 3);
+      % magnitude of directional gradient
+%       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
+   end
+end
+[MGoH, DGoH hgx hgy] = imgradient(height_img);
+figure;
+subplot(4,1,1);
+imagesc(hgx);
+title('gx of height img');
+subplot(4,1,2);
+imagesc(hgy);
+title('gy of height img');
+subplot(4,1,3);
+imagesc(g_dir);
+title('DGoD of Range img');
+subplot(4,1,4);
+imagesc(DGoH.*180/3.14);
+title('DGoH');
