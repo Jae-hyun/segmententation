@@ -213,10 +213,10 @@ clear img
 disp('======= Down Sampling =======');
 g.deci_s = 1;
 g.deci_r = 1;
-% g.img_scan_start = 1;
-% g.img_scan_end = 870;
-g.img_scan_start = 300;
-g.img_scan_end = 400;
+g.img_scan_start = 1;
+g.img_scan_end = 870;
+% g.img_scan_start = 300;
+% g.img_scan_end = 400;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -365,10 +365,10 @@ g.nnc = 0.5;
 % [nodes(:,9), g] = segment_graph(nodes(:,4), edges, g);
 
 g.method = 3;
-[nodes(:,9), g, sorted_edges, threshold] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
+[nodes(:,9), g] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
 disp(g.num_ccs);
-clear sorted_edges;
-clear threshold;
+% clear sorted_edges;
+% clear threshold;
 %% Original Gray Image plot
 % figure;
 % imshow(original_img);
@@ -434,12 +434,12 @@ imagesc(L1);
 title(' Ground surface only');
 clear g_mag2;
 %% Plot various image
-% %{
+%{
 disp('======= Plot image =======');
 tic
 plot_image(deci_img, nodes, g_dir, g, g_mag.*180/3.14);
 toc
-%  %}
+ %}
 %% z axis image plot
 %{
 for s = 0:1:g.nscans-1
@@ -638,7 +638,7 @@ toc
 % plot_test_HM2(nodes(:,1:3), plane); % display the result after the first segmentation
 
 %% plot point clouds in pcd_viewer
-% %{
+%{
 display('======= PCD Viewer =======');
 k = mod(nodes(:,9), g.num_ccs)+1;
 fpcd = figure;
@@ -649,12 +649,11 @@ points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7)
 pclviewer(points, '-ps 2 -ax 1');
 clear k; clear rgb_colormap;clear rgb_color;
 clear points;
-% %}
+%}
 %% Edge detection
 % %{
 temp_nodes = zeros(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
-
 
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
@@ -668,9 +667,10 @@ g.edge_label.START_N_END_ROW = 4;
 % Assign flat surface directional gradient image
 g.edge_label.FLAT_SURFACE = 5;
 g.edge_label.NON_FLAT_BOUNDARY = 6;
+g.edge_label.OBJECTS = 7;
 g.min_d_weight = 0.08;
-g.raster_weight = 0.005;
-g.radial_weight = 0.25;
+g.raster_weight = 0.02;
+g.radial_weight = 0.2;
 g.height_weight = 0.02;
 % Build Graph with Range Weight
 for i=1:1:g.nedges
@@ -678,7 +678,7 @@ for i=1:1:g.nedges
     if nodes(temp_edges(i,1),4) == 0 && nodes(temp_edges(i,2),4) ~= 0
         temp_nodes(temp_edges(i,2),1) = g.edge_label.NEIBOR_ZERO_RANGE;
     elseif nodes(temp_edges(i,1),4) == 0 % Zero Range node
-        temp_edges(i,4) = g.NO_EDGE;
+        temp_edges(i,4) = 0;
     elseif nodes(temp_edges(i,2),4) == 0 %neighbor edge zero range node
         temp_edges(i,4) = 2;
     else
@@ -686,26 +686,22 @@ for i=1:1:g.nedges
         diff_height = abs(nodes(temp_edges(i,1),3) - nodes(temp_edges(i,2),3));
         % Compute range difference
         temp_edges(i,3) = abs(nodes(temp_edges(i,1),4) - nodes(temp_edges(i,2),4));
+        % Choose short range between tow edges
         min_range = min((nodes(temp_edges(i,1),4)), (nodes(temp_edges(i,2),4)));
-%         if min_range > 10.0
         if (temp_edges(i,2) - temp_edges(i,1)) == 1
             weighted_range = g.raster_weight * min_range;
         elseif (temp_edges(i,1) + g.nranges == temp_edges(i,2))
-            weighted_range = (g.raster_weight/g.radial_weight) * min_range;
-        else
             weighted_range = g.radial_weight * min_range;
+            
+        else
+            weighted_range = (g.raster_weight+g.radial_weight) * min_range;
         end
+        
         weighted_height = g.height_weight * min_range;
-%             weighted_height = 0;
-%         else
-%             min_range = g.min_d_weight * min_range;
-%         end
+        
         if temp_edges(i,3) > weighted_range ...
 %                 || diff_height > weighted_height
             temp_edges(i,4) = g.NO_EDGE;
-%             if temp_edges(i,2) == 0
-%                 temp_edges(i,4) = 2;
-%             end
         else
             temp_edges(i,4) = 1;
         end
@@ -729,6 +725,8 @@ for i=1:1:g.nedges
             temp_nodes(temp_edges(i,1),1) = g.edge_label.ZERO_RANGE;
         elseif temp_edges(i,4) == 2
             temp_nodes(temp_edges(i,1),1) = g.edge_label.NEIBOR_ZERO_RANGE;
+        else
+%             temp_nodes(temp_edges(i,1),1) = g.edge_label.OBJECTS;
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
 end
@@ -747,7 +745,7 @@ for s = 0:1:g.nscans-1
         % Assign flat surface magnitude of directional gradient image
 %         if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
         % Assign flat surface directional gradient image
-        if originalImage1(s+1, r+1) == 1 && temp_img(s+1, r+1) == g.edge_label.ZERO_RANGE
+        if originalImage1(s+1, r+1) == 1% && temp_img(s+1, r+1) == g.edge_label.ZERO_RANGE
             temp_img(s+1,r+1) = g.edge_label.FLAT_SURFACE;
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
@@ -773,41 +771,30 @@ end
 % imagesc(temp_img);
 title('Edge Img and Ground Plane, temp\_img');
 %}
-temp_img1 = zeros(g.nscans, g.nranges);
-%     cm = colormap(jet(100));
-ncolor = randperm(100);
-for s = 0:1:g.nscans-1
-    for r=0:1:g.nranges-1
-        idx = s* g.nranges + r;
-        if nodes(idx+1,9) ~= 0
-            temp_img1(s+1,r+1) = ncolor(mod(nodes(idx+1,9), 100)+1);
-        end
-        %             temp_img(s+1,r+1) = nodes(idx+1,1);
-    end
-end
-
-for s = 1:1:g.nscans
-    for r=1:1:g.nranges
-        if temp_img(s,r) ~= g.edge_label.ZERO_RANGE
-            temp_img1(s,r) = 0;
-        end
-        %             temp_img(s+1,r+1) = nodes(idx+1,1);
-    end
-end
-%     %{
+    %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
     set(f, 'Position',[0, 0, fullscreen(3)/2, fullscreen(4)]);
     subplot(3,1,1);
 %     colormap(jet(100));
-    imagesc(temp_img1);
+    imagesc(L1);
+    title('Labeled Flat surface');
     subplot(3,1,2);
     imagesc(temp_img);
+    title('Edge labeling image, temp\_img');
     subplot(3,1,3);
+%     colormap(JET);
     imagesc(deci_img);
-%     %}
-    
+    title('Original Image, deci\_img');
+    %}
+% %% Plot Graph
+%{
+disp('======= plot graph  =======');
+tic
+plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
+toc
+%}
 %% New Segment Graph
 %{
 g.c = 10.0;
@@ -878,6 +865,7 @@ clear points;
 % %}
 
 %% Boundary Extraction of non flat area
+% %{
      BW1 = bwperim(originalImage1, 8);
      BW2 = BW1*2 + temp_img;
      tic
@@ -933,14 +921,8 @@ clear points;
      imagesc(deci_img);
      title('Original Image, deci\_img');
 
-
-%% Plot Graph
-% %{
-disp('======= plot graph  =======');
-tic
-plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
-toc
 % %}
+
 
 %% V disparity map
 %{
@@ -1118,7 +1100,7 @@ imagesc(DGoD.*180/3.14);
 title('own ver. DGoD');
 %}
 %% Plot point clouds in pcd_viewer
-% %{
+%{
 display('======= PCD Viewer =======');
 for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
@@ -1138,7 +1120,7 @@ points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7)
 pclviewer(points, '-ps 2 -ax 1');
 clear k; clear rgb_colormap;clear rgb_color;
 clear points;
-% %}
+%}
 
 
 %% Plot continous Images
@@ -1289,6 +1271,7 @@ title('own ver. gy');
 %}
 
 %% Height Gradient Image Computation
+%{
 DGoH = zeros(g.nscans, g.nranges);
 MGoH = zeros(g.nscans, g.nranges);
 height_img = zeros(g.nscans, g.nranges);
@@ -1316,3 +1299,4 @@ title('DGoD of Range img');
 subplot(4,1,4);
 imagesc(DGoH.*180/3.14);
 title('DGoH');
+%}
