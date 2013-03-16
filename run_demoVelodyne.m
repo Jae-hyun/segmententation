@@ -669,7 +669,7 @@ g.edge_label.FLAT_SURFACE = 5;
 g.edge_label.NON_FLAT_BOUNDARY = 6;
 g.edge_label.OBJECTS = 7;
 g.min_d_weight = 0.08;
-g.raster_weight = 0.02;
+g.raster_weight = 0.05;
 g.radial_weight = 0.2;
 g.height_weight = 0.02;
 % Build Graph with Range Weight
@@ -771,7 +771,7 @@ end
 % imagesc(temp_img);
 title('Edge Img and Ground Plane, temp\_img');
 %}
-    %{
+%     %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
@@ -787,7 +787,7 @@ title('Edge Img and Ground Plane, temp\_img');
 %     colormap(JET);
     imagesc(deci_img);
     title('Original Image, deci\_img');
-    %}
+%     %}
 % %% Plot Graph
 %{
 disp('======= plot graph  =======');
@@ -1100,7 +1100,7 @@ imagesc(DGoD.*180/3.14);
 title('own ver. DGoD');
 %}
 %% Plot point clouds in pcd_viewer
-%{
+% %{
 display('======= PCD Viewer =======');
 for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
@@ -1120,7 +1120,7 @@ points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7)
 pclviewer(points, '-ps 2 -ax 1');
 clear k; clear rgb_colormap;clear rgb_color;
 clear points;
-%}
+% %}
 
 
 %% Plot continous Images
