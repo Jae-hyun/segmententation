@@ -216,7 +216,7 @@ g.deci_r = 1;
 g.img_scan_start = 1;
 g.img_scan_end = 870;
 % g.img_scan_start = 300;
-% g.img_scan_end = 400;
+% g.img_scan_end = 500;
 tic
 [deci_img, g] = down_sample_img(img_matrix, g);
 toc
@@ -415,6 +415,7 @@ originalImage = im2bw(g_mag2, threshold);
 %  L = bwlabel(originalImage,8);
  [L1, NUM1] = bwlabeln(originalImage1,8);
  NUM1
+ %{
 figure;
 subplot(5,1,1);
 imagesc(g_mag1);
@@ -432,6 +433,7 @@ title('directional gradient image');
 subplot(5,1,5);
 imagesc(L1);
 title(' Ground surface only');
+ %}
 clear g_mag2;
 %% Plot various image
 %{
@@ -652,14 +654,14 @@ clear points;
 %}
 %% Edge detection
 % %{
-temp_nodes = zeros(g.nnodes, 1);
+temp_nodes = ones(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
 
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
 % g.NO_EDGE: no edges
 g.edge_label.ZERO_RANGE = 0;
-g.edge_label.OBJECT_EDGE = 1;
+g.edge_label.OBJECT_EDGE = 8;
 g.edge_label.FAR_EDGE = 2;
 g.edge_label.NEIBOR_ZERO_RANGE = 3;
  % Assign start and end of row pixel to to edge;
@@ -669,8 +671,8 @@ g.edge_label.FLAT_SURFACE = 5;
 g.edge_label.NON_FLAT_BOUNDARY = 6;
 g.edge_label.OBJECTS = 7;
 g.min_d_weight = 0.08;
-g.raster_weight = 0.05;
-g.radial_weight = 0.2;
+g.raster_weight = 0.08;
+g.radial_weight = 0.03;
 g.height_weight = 0.02;
 % Build Graph with Range Weight
 for i=1:1:g.nedges
@@ -747,10 +749,12 @@ for s = 0:1:g.nscans-1
         % Assign flat surface directional gradient image
         if originalImage1(s+1, r+1) == 1% && temp_img(s+1, r+1) == g.edge_label.ZERO_RANGE
             temp_img(s+1,r+1) = g.edge_label.FLAT_SURFACE;
+            
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
 end
+
 %{
 % for s = 1:1:g.nscans
 %     for r=1:1:g.nranges
@@ -788,13 +792,7 @@ title('Edge Img and Ground Plane, temp\_img');
     imagesc(deci_img);
     title('Original Image, deci\_img');
 %     %}
-% %% Plot Graph
-%{
-disp('======= plot graph  =======');
-tic
-plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
-toc
-%}
+
 %% New Segment Graph
 %{
 g.c = 10.0;
@@ -879,16 +877,22 @@ clear points;
      temp_img2 = zeros(g.nscans, g.nranges);
      tic
      % non-flat ground boundary
-     for s = 1:1:g.nscans
-         for r=1:1:g.nranges
-             if filtered_BW3(s,r) == 0
-                 temp_img2(s,r) = 1;
+     for s = 0:1:g.nscans-1
+         for r=0:1:g.nranges-1
+             idx = s* g.nranges + r;
+             if (s == 0) || (s == g.nscans-1)
+                 temp_nodes(idx+1, 1) = g.edge_label.START_N_END_ROW;
              end
-             if BW4(s,r) == 1
-                 temp_img2(s,r) = 5;
+             temp_img2(s+1,r+1) = temp_nodes(idx+1,1);
+             if filtered_BW3(s+1,r+1) == 0
+                 temp_img2(s+1,r+1) = g.edge_label.FLAT_SURFACE;
+                 temp_nodes(idx+1, 1) = g.edge_label.FLAT_SURFACE;
+             end
+             if BW4(s+1,r+1) == 1 && temp_img2(s+1,r+1) ~= g.edge_label.OBJECT_EDGE% && temp_img2(s+1,r+1) ~= g.edge_label.FAR_EDGE
+                 temp_img2(s+1,r+1) = 7;
+                 temp_nodes(idx+1, 1) = g.edge_label.FLAT_SURFACE;
              end
              
-             %             temp_img(s+1,r+1) = nodes(idx+1,1);
          end
      end
      toc
@@ -909,6 +913,11 @@ clear points;
      title('Flat surface + Boundary of non flat surfance');   
      %}
 
+ for i=1:1:g.nedges
+    if temp_nodes(temp_edges(i,1),1) == g.edge_label.FLAT_SURFACE || temp_nodes(temp_edges(i,2),1) == g.edge_label.FLAT_SURFACE
+        temp_edges(i,4) = g.NO_EDGE;
+    end
+end
      % Compare range based edge detection and boundary of flat surface detection
      figure;
      subplot(3,1,1);
@@ -923,6 +932,14 @@ clear points;
 
 % %}
 
+%% Plot Graph
+% %{
+disp('======= plot graph  =======');
+tic
+g.no_ground_graph = 1;
+plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
+toc
+% %}
 
 %% V disparity map
 %{
@@ -1106,7 +1123,7 @@ for s = 0:1:g.nscans-1
    for r=0:1:g.nranges-1
       idx = s* g.nranges + r;
       % flat & objects & boundary of nonflat area
-      nodes(idx+1, 10) = temp_img(s+1,r+1);
+      nodes(idx+1, 10) = temp_img2(s+1,r+1);
       % magnitude of directional gradient
 %       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
    end

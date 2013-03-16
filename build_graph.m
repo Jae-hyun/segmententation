@@ -29,23 +29,23 @@ function [normals, edges] = build_graph(nodes, labels, g)
                     end
                 end
                 % x+1, y+1
-                if s < nscans -1 && r < nranges -1
-                    idy = (s+1) * nranges + (r+1);
-                    if labels(idy+1) ~= g.label.ground
-                        edges(num,1) = idx + 1;
-                        edges(num,2) = idy + 1;
-                        num = num + 1;
-                    end
-                end
-                % x+1, y-1
-                if s > 0 && r < nranges -1
-                    if labels(idy+1) ~= g.label.ground
-                        idy = (s-1) * nranges + (r+1);
-                        edges(num,1) = idx + 1;
-                        edges(num,2) = idy + 1;
-                        num = num + 1;
-                    end
-                end
+%                 if s < nscans -1 && r < nranges -1
+%                     idy = (s+1) * nranges + (r+1);
+%                     if labels(idy+1) ~= g.label.ground
+%                         edges(num,1) = idx + 1;
+%                         edges(num,2) = idy + 1;
+%                         num = num + 1;
+%                     end
+%                 end
+%                 % x+1, y-1
+%                 if s > 0 && r < nranges -1
+%                     if labels(idy+1) ~= g.label.ground
+%                         idy = (s-1) * nranges + (r+1);
+%                         edges(num,1) = idx + 1;
+%                         edges(num,2) = idy + 1;
+%                         num = num + 1;
+%                     end
+%                 end
 %             end
         end
     end
