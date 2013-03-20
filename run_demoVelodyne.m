@@ -933,13 +933,13 @@ end
 % %}
 
 %% Plot Graph
-% %{
+%{
 disp('======= plot graph  =======');
 tic
 g.no_ground_graph = 1;
 plot_graph(nodes(:,1:3), [temp_edges(:,1:2) temp_edges(:,4)], g);
 toc
-% %}
+%}
 
 %% V disparity map
 %{
@@ -994,7 +994,7 @@ title('sobel');
 %}
 
 %% gradient edge plot( Original img, DoG img, MDoG img);
-%{
+% %{
 figure;
 subplot(3,1,1);
 imagesc(deci_img);
@@ -1005,10 +1005,10 @@ title('Directional Gradient Image, g\_dir');
 subplot(3,1,3);
 imagesc(g_mag_original);
 title('Magnitude of Directional Gradient Image, g\_mag\_original');
-%}
+% %}
 
 %% Gx, Gy, MGoD, DGoD Computation
-%{
+% %{
 GoD_x = zeros(g.nscans, g.nranges);
 GoD_y = zeros(g.nscans, g.nranges);
 %%% Computation of gx
@@ -1059,7 +1059,7 @@ title('own ver. gy');
 
 
 MGoD = sqrt(GoD_x.^2+GoD_y.^2);
-DGoD = atan2(GoD_y,GoD_x).*180/3.14;
+DGoD = atan2(abs(GoD_y),GoD_x).*180/3.14;
 figure;
 subplot(4,1,1);
 imagesc(g_mag);
@@ -1073,8 +1073,55 @@ title('matlab ver. g\_dir');
 subplot(4,1,4);
 imagesc(DGoD);
 title('own ver. DGoD');
+%%
+MDGoD = imgradient(DGoD);
+tete = DGoD;
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if MDGoD(s, r) >= 10 && deci_img(s,r) ~= 0
+            MDGoD(s, r) = 1;
+        else
+            MDGoD(s, r) = 0;
+        end
+    end
+end
+MDGoD = bwareaopen(MDGoD,10,8);
 
+MDGoD = xor(MDGoD,1);
+MDGoD = bwareaopen(MDGoD,10,8);
+MDGoD = xor(MDGoD,1);
+EMDGoD = xor(MDGoD,1);
+EMDGoD = bwperim(EMDGoD, 8);
+% 
+MDGoD = MDGoD - EMDGoD;
+EMDGoD1 = xor(MDGoD,1);
+% EMDGoD1 = bwperim(EMDGoD1, 8);
+MDGoD = MDGoD + EMDGoD1;
+for s = 1:1:g.nscans
+    for r=1:1:g.nranges
+        if MDGoD(s, r) == 1
+            tete(s, r) = 2;
+        elseif deci_img(s,r) == 0
+            tete(s, r) = 0;
+        else
+            tete(s, r) = 1;
+        end
+        if temp_img2(s,r) == g.edge_label.OBJECT_EDGE
+            tete(s, r) = 3;
+        end
+    end
+end
+
+figure;
+subplot(3,1,1);
+imagesc(DGoD);
+subplot(3,1,2);
+imagesc(MDGoD);
+subplot(3,1,3);
+imagesc(tete);
+%}
 %% DGoD Computation
+%{
 for s = 1:1:g.nscans
     for r=2:1:g.nranges-1
         GoD_x(s,r) = (deci_img(s,r+1) - deci_img(s,r-1));
