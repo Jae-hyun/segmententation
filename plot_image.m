@@ -48,7 +48,17 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
        for r=0:1:g.nranges-1
            idx = s* g.nranges + r;
            if nodes(idx+1,4) ~= 0
-               temp_img1(s+1,r+1) = (nodes(idx+1,5)+nodes(idx+1,6)+nodes(idx+1,7))*60;
+%                temp_img1(s+1,r+1) = (nodes(idx+1,5)*nodes(idx+1,5)+nodes(idx+1,6)*nodes(idx+1,6)+nodes(idx+1,7)*nodes(idx+1,7))*180/3.14;
+               temp_img1(s+1,r+1) = nodes(idx+1,5)+nodes(idx+1,6)+nodes(idx+1,7);
+%                temp_img1(s+1,r+1) = nodes(idx+1,7);
+%                 temp_img1(s+1,r+1) = floor(acos(dp).*180/3.14);
+%                dp = n1.x*n2.x + n1.y*n2.y + n1.z*n2.z
+%                This will give a value in [-1 to 1].
+%                If dp is negative, the angle is greater than 90 degrees.
+%                
+%                To find the angle, use arc-cosine.
+%                
+%                еш = acos(dp);
                %             temp_img(s+1,r+1) = nodes(idx+1,1);
            end
        end
@@ -88,7 +98,7 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
     end
 %     figure;
     subplot(5,1,5);
-    imagesc(temp_grad);
+    image(temp_img1);
     title('Ground Image using DoG');
     
     f1 = figure;
@@ -146,4 +156,6 @@ function plot_image(deci_img,nodes,grad_img, g, mog_img)
 %     image(t_m);
 %     subplot(2,1,2);
 %     imagesc(t_d);
+    figure;
+    imagesc(temp_img1.*180/3.14);
 end
