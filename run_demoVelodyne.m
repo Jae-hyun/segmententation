@@ -193,7 +193,7 @@ base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 % base_dir  = 'C:\Users\Administrator\Downloads\scenario2';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 % frame = 11041;
-frame = 400;
+frame = 0;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 
 % img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
@@ -1210,8 +1210,8 @@ rgb_color = rgb_colormap(k,:);
 close(fpcd);
 points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
 pclviewer(points, '-ps 2 -ax 1');
-clear k; clear rgb_colormap;clear rgb_color;
-clear points;
+% clear k; clear rgb_colormap;clear rgb_color;
+% clear points;
 % %}
 
 
