@@ -50,7 +50,7 @@ function [normals, edges] = build_graph(nodes, labels, g)
         end
     end
     %% Surface Normals calculation using PCA
-    %{
+%     %{
     
     for s = 0:1:nscans-1
         for r=0:1:nranges-1
@@ -65,6 +65,6 @@ function [normals, edges] = build_graph(nodes, labels, g)
             end
         end
     end
-    %}
+%     %}
 
 end

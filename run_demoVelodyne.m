@@ -193,7 +193,7 @@ base_dir  = 'C:\Users\Administrator\Downloads\scenario1';
 % base_dir  = 'C:\Users\Administrator\Downloads\scenario2';
 nimages = length(dir(fullfile(sprintf('%s/',base_dir), '*.png')));
 % frame = 11041;
-frame = 90;
+frame = 400;
 img = imread(sprintf('%s/scan%05d.png',base_dir,frame));
 
 % img_dir = 'C:\Users\Administrator\Downloads\scenario1_part2\image_01\data';
@@ -311,7 +311,10 @@ g.w = 0.7;
 g.height_weight = 0.05;
 tic
 for i=1:1:g.nedges
-    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0 || nodes(edges(i,1),10) == 0 || nodes(edges(i,2),10) == 0 
+    % Edge with Ground Extraction
+    %if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0 || nodes(edges(i,1),10) == 0 || nodes(edges(i,2),10) == 0 
+    % Edge with Non-Ground Extration
+    if nodes(edges(i,1),4) == 0 || nodes(edges(i,2),4) == 0% || nodes(edges(i,1),10) == 0 || nodes(edges(i,2),10) == 0
         edges(i,3) = g.NO_EDGE;
         edges(i,4) = g.NO_EDGE;
         edges(i,5) = g.NO_EDGE;
@@ -333,8 +336,9 @@ for i=1:1:g.nedges
             
         end
         if edges(i,3) ~= g.NO_EDGE && isnan(edges(i,3)) ~= 1
-%             edges(i,5) = (1-edges(i,4))*edges(i,4) + (1-edges(i,4))*(edges(i,3)/g.max_d_weight);
-            edges(i, 5) = abs(nodes(edges(i,1),3) - nodes(edges(i,2),3));
+            edges(i,5) = 2.5*edges(i,4) + 0.15*(edges(i,3)/g.max_d_weight);
+%             edges(i, 5) = abs(nodes(edges(i,1),3) - nodes(edges(i,2),3));
+%             edges(i, 5) = 
         else
             edges(i,5) = g.NO_EDGE;
         end
@@ -350,44 +354,6 @@ end
 toc
 
 frame = frame + 1;
-
-%% Segment Graph
-disp('======= Segment Graph =======');
-g.min_size = 10;
-% g.num_ccs = 0;
-g.c = 20.0;
-% normals
-% g.n = 0.5;
-% gradient
-g.n = 1.5;
-g.nnc = 0.5;
-% g.method = 4;
-% [nodes(:,9), g] = segment_graph(nodes(:,4), edges, g);
-
-g.method = 3;
-[nodes(:,9), g] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
-disp(g.num_ccs);
-% clear sorted_edges;
-% clear threshold;
-%% Original Gray Image plot
-% figure;
-% imshow(original_img);
-%% gradient image plot
-%{
-figure;
-subplot(2,1,1);
-image(abs(gx)*1000);
-subplot(2,1,2);
-image(abs(gy)*1000);
-
-%%
-% for s = 1:1:g.nscans
-%    for r=1:1:g.nranges
-%        g_mag1(s,r) = g_mag(s,r)*s/1.5;
-%    end
-% end
-
-%}
 %% gradient and flat surface image plot
 g_mag2 = zeros(g.nscans, g.nranges);
 for s = 1:1:g.nscans
@@ -415,7 +381,7 @@ originalImage = im2bw(g_mag2, threshold);
 %  L = bwlabel(originalImage,8);
  [L1, NUM1] = bwlabeln(originalImage1,8);
  NUM1
- %{
+%  %{
 figure;
 subplot(5,1,1);
 imagesc(g_mag1);
@@ -433,8 +399,70 @@ title('directional gradient image');
 subplot(5,1,5);
 imagesc(L1);
 title(' Ground surface only');
- %}
+%  %}
 clear g_mag2;
+%% Segment Graph
+disp('======= Segment Graph =======');
+g.min_size = 10;
+% g.num_ccs = 0;
+g.c = 10.0;
+% normals
+% g.n = 0.7;
+% gradient
+g.n = 1.5;
+g.nnc = 20.0;
+% g.method
+% 1: range only, 2: normals only, 3: weighted combination, 4: two thresholds
+% 5: our method(multi-plane & range based segmentation)
+% g.method = 4;
+% [nodes(:,9), g] = segment_graph(nodes(:,4), edges, g);
+
+g.method = 5;
+if g.method == 4
+    g.c = 150.0;
+    % normals
+    g.n = 0.9;
+elseif g.method == 5
+    % Edge with Ground Extraction
+    for i=1:1:g.nedges
+        if nodes(edges(i,1),10) == 0 || nodes(edges(i,2),10) == 0 
+            edges(i,3) = g.NO_EDGE;
+            edges(i,4) = g.NO_EDGE;
+            edges(i,5) = g.NO_EDGE;
+        end
+    end
+end
+[nodes(:,9), g] = segment_graph(nodes(:,4), edges, g, nodes(:,10));
+disp(g.num_ccs);
+% clear sorted_edges;
+% clear threshold;
+%% Plot various image
+%{
+disp('======= Plot image =======');
+tic
+plot_image(deci_img, nodes, g_dir, g, g_mag.*180/3.14);
+toc
+ %}
+%% Original Gray Image plot
+% figure;
+% imshow(original_img);
+%% gradient image plot
+%{
+figure;
+subplot(2,1,1);
+image(abs(gx)*1000);
+subplot(2,1,2);
+image(abs(gy)*1000);
+
+%%
+% for s = 1:1:g.nscans
+%    for r=1:1:g.nranges
+%        g_mag1(s,r) = g_mag(s,r)*s/1.5;
+%    end
+% end
+
+%}
+
 %% Plot various image
 %{
 disp('======= Plot image =======');
@@ -775,7 +803,7 @@ end
 % imagesc(temp_img);
 title('Edge Img and Ground Plane, temp\_img');
 %}
-%     %{
+    %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
@@ -791,7 +819,7 @@ title('Edge Img and Ground Plane, temp\_img');
 %     colormap(JET);
     imagesc(deci_img);
     title('Original Image, deci\_img');
-%     %}
+    %}
 
 %% New Segment Graph
 %{
@@ -994,7 +1022,7 @@ title('sobel');
 %}
 
 %% gradient edge plot( Original img, DoG img, MDoG img);
-% %{
+%{
 figure;
 subplot(3,1,1);
 imagesc(deci_img);
@@ -1005,10 +1033,10 @@ title('Directional Gradient Image, g\_dir');
 subplot(3,1,3);
 imagesc(g_mag_original);
 title('Magnitude of Directional Gradient Image, g\_mag\_original');
-% %}
+%}
 
 %% Gx, Gy, MGoD, DGoD Computation
-% %{
+%{
 GoD_x = zeros(g.nscans, g.nranges);
 GoD_y = zeros(g.nscans, g.nranges);
 %%% Computation of gx
