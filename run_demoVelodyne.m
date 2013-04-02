@@ -682,16 +682,16 @@ clear points;
 %}
 %% Edge detection
 % %{
-temp_nodes = ones(g.nnodes, 1);
+temp_nodes = zeros(g.nnodes, 1);
 % temp_edges = zeros(g.nedges, 1);
 
 % Edge label Description %
 % 0: range value == 0, 1:edge 존재, 2: 0 pixel의 우 혹은 하 pixel labeling
 % g.NO_EDGE: no edges
 g.edge_label.ZERO_RANGE = 0;
-g.edge_label.OBJECT_EDGE = 8;
-g.edge_label.FAR_EDGE = 2;
-g.edge_label.NEIBOR_ZERO_RANGE = 3;
+g.edge_label.OBJECT_EDGE = 1;
+g.edge_label.FAR_EDGE = 3;
+g.edge_label.NEIBOR_ZERO_RANGE = 2;
  % Assign start and end of row pixel to to edge;
 g.edge_label.START_N_END_ROW = 4;
 % Assign flat surface directional gradient image
@@ -738,6 +738,10 @@ for i=1:1:g.nedges
     end
 end
 
+% g.edge_label.ZERO_RANGE = 0;
+% g.edge_label.OBJECT_EDGE = 8;
+% g.edge_label.FAR_EDGE = 2;
+% g.edge_label.NEIBOR_ZERO_RANGE = 3;
 for i=1:1:g.nedges
         if isnan(temp_edges(i,4)) == 1
             % Edge assign 1: object edge, 2: unocupanncy edge
@@ -776,34 +780,14 @@ for s = 0:1:g.nscans-1
 %         if g_mag1(s+1, r+1) == -180 && temp_img(s+1, r+1) == 0
         % Assign flat surface directional gradient image
         if originalImage1(s+1, r+1) == 1% && temp_img(s+1, r+1) == g.edge_label.ZERO_RANGE
-            temp_img(s+1,r+1) = g.edge_label.FLAT_SURFACE;
+%             temp_img(s+1,r+1) = g.edge_label.FLAT_SURFACE;
             
         end
         %             temp_img(s+1,r+1) = nodes(idx+1,1);
     end
 end
 
-%{
-% for s = 1:1:g.nscans
-%     for r=1:1:g.nranges
-%         if g_mag1(s, r) <= 20
-%             g_mag1(s, r) = -180;
-%         else
-%             g_mag1(s, r) = 0;
-%         end
-%     end
-% end
-
-% figure;
-% subplot(2,1,1);
-% image(deci_img);
-% title('Original Img, deci\_img');
-% subplot(2,1,2);
-% % colormap(lines);
-% imagesc(temp_img);
-title('Edge Img and Ground Plane, temp\_img');
-%}
-    %{
+%     %{
     f = figure;
     fullscreen = get(0,'ScreenSize');
     % fullscreen = [x_start y_start x_end y_end]
@@ -812,14 +796,21 @@ title('Edge Img and Ground Plane, temp\_img');
 %     colormap(jet(100));
     imagesc(L1);
     title('Labeled Flat surface');
+%         colorbar;
     subplot(3,1,2);
+    % g.edge_label.ZERO_RANGE = 0;
+% g.edge_label.OBJECT_EDGE = 1;
+% g.edge_label.FAR_EDGE = 2;
+% g.edge_label.NEIBOR_ZERO_RANGE = 3;
     imagesc(temp_img);
-    title('Edge labeling image, temp\_img');
+%     text(0,0,0, 'test');
+    title('Edge labeling image, temp\_img, 0:0, 1:obj, 3:far\_obj, 2:nei\_zero, 5:g');
+    colorbar;
     subplot(3,1,3);
 %     colormap(JET);
     imagesc(deci_img);
     title('Original Image, deci\_img');
-    %}
+%     %}
 
 %% New Segment Graph
 %{
@@ -925,7 +916,7 @@ clear points;
      end
      toc
      % flat surface and it's boundary plot
-     %{
+%      %{
      figure;
      subplot(4,1,1);
      imagesc(BW3);
@@ -939,7 +930,7 @@ clear points;
      subplot(4,1,4);
      imagesc(temp_img2);
      title('Flat surface + Boundary of non flat surfance');   
-     %}
+%      %}
 
  for i=1:1:g.nedges
     if temp_nodes(temp_edges(i,1),1) == g.edge_label.FLAT_SURFACE || temp_nodes(temp_edges(i,2),1) == g.edge_label.FLAT_SURFACE
@@ -947,6 +938,7 @@ clear points;
     end
 end
      % Compare range based edge detection and boundary of flat surface detection
+     %{
      figure;
      subplot(3,1,1);
      imagesc(temp_img);
@@ -957,9 +949,31 @@ end
      subplot(3,1,3);
      imagesc(deci_img);
      title('Original Image, deci\_img');
+     %}
 
 % %}
-
+%% Plot point clouds in pcd_viewer
+% %{
+display('======= PCD Viewer =======');
+for s = 0:1:g.nscans-1
+   for r=0:1:g.nranges-1
+      idx = s* g.nranges + r;
+      % flat & objects & boundary of nonflat area
+      nodes(idx+1, 10) = temp_img2(s+1,r+1);
+      % magnitude of directional gradient
+%       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
+   end
+end
+k = nodes(:,10)+1;
+fpcd = figure;
+rgb_colormap = colormap(jet(max(k(:))));
+rgb_color = rgb_colormap(k,:);
+close(fpcd);
+points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
+pclviewer(points, '-ps 2 -ax 1');
+clear k; clear rgb_colormap;clear rgb_color;
+clear points;
+% %}
 %% Plot Graph
 %{
 disp('======= plot graph  =======');
@@ -1191,29 +1205,6 @@ subplot(4,1,4);
 imagesc(DGoD.*180/3.14);
 title('own ver. DGoD');
 %}
-%% Plot point clouds in pcd_viewer
-% %{
-display('======= PCD Viewer =======');
-for s = 0:1:g.nscans-1
-   for r=0:1:g.nranges-1
-      idx = s* g.nranges + r;
-      % flat & objects & boundary of nonflat area
-      nodes(idx+1, 10) = temp_img2(s+1,r+1);
-      % magnitude of directional gradient
-%       nodes(idx+1, 10) = floor(g_mag_original(s+1,r+1));
-   end
-end
-k = nodes(:,10)+1;
-fpcd = figure;
-rgb_colormap = colormap(jet(max(k(:))));
-rgb_color = rgb_colormap(k,:);
-close(fpcd);
-points = [transpose(nodes(:,1:3)); transpose(rgb_color); transpose(nodes(:, 5:7))];
-pclviewer(points, '-ps 2 -ax 1');
-% clear k; clear rgb_colormap;clear rgb_color;
-% clear points;
-% %}
-
 
 %% Plot continous Images
 %{
